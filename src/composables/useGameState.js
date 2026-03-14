@@ -2,9 +2,13 @@
  * useGameState.js
  *
  * Central game state composable.
- * Manages the full lifecycle: start → playing rounds → end.
+ * Manages the full lifecycle: start → playing rounds (persistent board) → end / failed.
  *
- * Consumed by App.vue; exposes reactive refs and action functions.
+ * v1.2 — Persistent Board mechanic:
+ *   • Correctly-placed patterns claim their nodes; those nodes are locked for
+ *     all subsequent rounds (tracked in `claimedByRound`).
+ *   • Each round allows MAX_ATTEMPTS wrong submissions before the game fails.
+ *   • phase can now be 'start' | 'playing' | 'end' | 'failed'.
  */
 
 import { ref, computed } from 'vue'
@@ -17,64 +21,70 @@ const BASE_SCORE          = 100
 const FIRST_ATTEMPT_BONUS = 50
 const ADVANCE_DELAY_MS    = 1400   // pause after correct solve before next round
 
+/** Wrong-submission budget per round before the run fails. */
+export const MAX_ATTEMPTS = 3
+
 // ── Game phases ──────────────────────────────────────────────────────────────
 /**
- * @typedef {'start'|'playing'|'end'} GamePhase
+ * @typedef {'start'|'playing'|'end'|'failed'} GamePhase
  */
 
-/**
- * useGameState — singleton-style composable (module-level state so the same
- * reactive tree is shared if imported multiple times, which is fine for a
- * single-page jam game).
- */
 export function useGameState() {
   /** @type {import('vue').Ref<GamePhase>} */
   const phase          = ref('start')
   const score          = ref(0)
-  const roundIndex     = ref(0)           // 0-based index into patterns[]
-  const selectedIds    = ref([])          // node IDs currently selected
-  const correctIds     = ref([])          // node IDs to flash on correct solve
-  const attemptCount   = ref(0)           // attempts for the current round
-  const feedbackMsg    = ref('')          // '' | success text | error text
-  const feedbackType   = ref('')          // '' | 'success' | 'error'
-  const isLocked       = ref(false)       // true while success animation plays
+  const roundIndex     = ref(0)
+  const selectedIds    = ref([])
+  const correctIds     = ref([])
+  const attemptCount   = ref(0)           // first-attempt bonus tracker
+  const attemptsLeft   = ref(MAX_ATTEMPTS) // wrong-answer budget for current round
+  const feedbackMsg    = ref('')
+  const feedbackType   = ref('')
+  const isLocked       = ref(false)
+
+  /**
+   * claimedByRound: nodeId → 1-based round number that claimed it.
+   * Survives across rounds within a session; reset only on full restart.
+   * @type {import('vue').Ref<Record<string, number>>}
+   */
+  const claimedByRound = ref({})
 
   // ── Computed helpers ───────────────────────────────────────────────────────
   const currentPattern  = computed(() => patterns[roundIndex.value] ?? null)
-  const currentRound    = computed(() => roundIndex.value + 1)     // 1-based display
+  const currentRound    = computed(() => roundIndex.value + 1)
   const totalRounds     = computed(() => TOTAL_ROUNDS)
   const isPlaying       = computed(() => phase.value === 'playing')
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
-  /** Transition from title screen to the first round. */
   function startGame() {
-    score.value        = 0
-    roundIndex.value   = 0
-    selectedIds.value  = []
-    correctIds.value   = []
-    attemptCount.value = 0
-    feedbackMsg.value  = ''
-    feedbackType.value = ''
-    isLocked.value     = false
-    phase.value        = 'playing'
+    score.value          = 0
+    roundIndex.value     = 0
+    selectedIds.value    = []
+    correctIds.value     = []
+    attemptCount.value   = 0
+    attemptsLeft.value   = MAX_ATTEMPTS
+    feedbackMsg.value    = ''
+    feedbackType.value   = ''
+    isLocked.value       = false
+    claimedByRound.value = {}
+    phase.value          = 'playing'
   }
 
-  /** Toggle a node's selection; no-op when the round is locked (success anim). */
+  /** Toggle a node's selection. Blocked for claimed or locked nodes. */
   function toggleNode(id) {
     if (isLocked.value) return
+    if (claimedByRound.value[id] !== undefined) return   // already claimed
     const idx = selectedIds.value.indexOf(id)
     if (idx === -1) {
       selectedIds.value = [...selectedIds.value, id]
     } else {
       selectedIds.value = selectedIds.value.filter(n => n !== id)
     }
-    // Clear feedback as soon as the player re-interacts
     feedbackMsg.value  = ''
     feedbackType.value = ''
   }
 
-  /** Clear the current node selection. */
   function resetSelection() {
     if (isLocked.value) return
     selectedIds.value  = []
@@ -82,10 +92,6 @@ export function useGameState() {
     feedbackType.value = ''
   }
 
-  /**
-   * Validate the current selection against the active pattern.
-   * Awards points on success, shows feedback, and advances after a delay.
-   */
   function submitAnswer() {
     if (isLocked.value) return
     const pattern = currentPattern.value
@@ -106,17 +112,33 @@ export function useGameState() {
       feedbackType.value = 'success'
       isLocked.value     = true
 
-      setTimeout(() => {
-        _advanceRound()
-      }, ADVANCE_DELAY_MS)
+      // Claim these nodes for the current round
+      const roundNum = currentRound.value
+      const claimed  = { ...claimedByRound.value }
+      for (const id of selectedIds.value) {
+        claimed[id] = roundNum
+      }
+      claimedByRound.value = claimed
+
+      setTimeout(() => { _advanceRound() }, ADVANCE_DELAY_MS)
+
     } else {
       // ── Incorrect ──────────────────────────────────────────────────────────
-      feedbackMsg.value  = _incorrectHint(pattern)
-      feedbackType.value = 'error'
+      attemptsLeft.value--
+
+      if (attemptsLeft.value <= 0) {
+        feedbackMsg.value  = `✗ No attempts left — the garden is blocked!`
+        feedbackType.value = 'error'
+        isLocked.value     = true
+        setTimeout(() => { phase.value = 'failed' }, ADVANCE_DELAY_MS)
+      } else {
+        const plural = attemptsLeft.value === 1 ? 'attempt' : 'attempts'
+        feedbackMsg.value  = `${_incorrectHint(pattern)} (${attemptsLeft.value} ${plural} left)`
+        feedbackType.value = 'error'
+      }
     }
   }
 
-  /** Move to the next round or end the game. */
   function _advanceRound() {
     const nextIdx = roundIndex.value + 1
     if (nextIdx >= TOTAL_ROUNDS) {
@@ -126,13 +148,14 @@ export function useGameState() {
       selectedIds.value  = []
       correctIds.value   = []
       attemptCount.value = 0
+      attemptsLeft.value = MAX_ATTEMPTS
       feedbackMsg.value  = ''
       feedbackType.value = ''
       isLocked.value     = false
+      // claimedByRound persists across rounds — intentional
     }
   }
 
-  /** Produces a gentle, non-punishing hint message. */
   function _incorrectHint(pattern) {
     const sel = selectedIds.value.length
     if (sel !== pattern.nodeCount) {
@@ -141,17 +164,18 @@ export function useGameState() {
     return `Not quite — check the connections. ${pattern.hint}`
   }
 
-  /** Reset everything back to the title screen. */
   function restartGame() {
-    phase.value        = 'start'
-    score.value        = 0
-    roundIndex.value   = 0
-    selectedIds.value  = []
-    correctIds.value   = []
-    attemptCount.value = 0
-    feedbackMsg.value  = ''
-    feedbackType.value = ''
-    isLocked.value     = false
+    phase.value          = 'start'
+    score.value          = 0
+    roundIndex.value     = 0
+    selectedIds.value    = []
+    correctIds.value     = []
+    attemptCount.value   = 0
+    attemptsLeft.value   = MAX_ATTEMPTS
+    feedbackMsg.value    = ''
+    feedbackType.value   = ''
+    isLocked.value       = false
+    claimedByRound.value = {}
   }
 
   return {
@@ -164,6 +188,8 @@ export function useGameState() {
     feedbackMsg,
     feedbackType,
     isLocked,
+    claimedByRound,
+    attemptsLeft,
     // computed
     currentPattern,
     currentRound,
