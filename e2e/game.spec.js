@@ -28,10 +28,11 @@ const LINE3 = ['[data-node-id="n7"]', '[data-node-id="n8"]', '[data-node-id="n9"
 // Round-3 triangle: n8, n9, n13 — they form a triangle (n8-n9, n9-n13, n8-n13)
 const TRIANGLE = ['[data-node-id="n8"]', '[data-node-id="n9"]', '[data-node-id="n13"]']
 
-// Round-4 fork (Y): n9 as hub, connected to n4, n8, n14 (all are neighbours of n9)
+// Round-4 fork (Y): n9 as hub, arms = n5, n8, n14.
+// Edge check: n9-n5 ✓, n9-n8 ✓, n9-n14 ✓; n5-n8 ✗, n5-n14 ✗, n8-n14 ✗ → 3 edges, degrees [1,1,1,3] ✓
 const FORK = [
   '[data-node-id="n9"]',   // hub (degree 3 in selection)
-  '[data-node-id="n4"]',
+  '[data-node-id="n5"]',
   '[data-node-id="n8"]',
   '[data-node-id="n14"]',
 ]
@@ -44,13 +45,13 @@ const LINE4 = [
   '[data-node-id="n10"]',
 ]
 
-// Round-6 kite: triangle n8/n9/n13 + pendant from n9 to n4
-// Degrees: n8→2(n9,n13), n9→3(n8,n13,n4), n13→2(n8,n9), n4→1(n9) → [1,2,2,3] ✓
+// Round-6 kite: triangle n8/n9/n13 + pendant n7 from n8.
+// Edges: n7-n8, n8-n9, n8-n13, n9-n13; n7 connects only to n8 → degrees [1,2,2,3] ✓
 const KITE = [
   '[data-node-id="n8"]',
   '[data-node-id="n9"]',
   '[data-node-id="n13"]',
-  '[data-node-id="n4"]',
+  '[data-node-id="n7"]',
 ]
 
 const ALL_ROUNDS = [LINE3, TRIANGLE, FORK, LINE4, KITE]
@@ -133,11 +134,12 @@ test.describe('IsoBloom — Round Progression', () => {
     await page.locator(NODE_B).click({ force: true })
     await page.getByTestId('btn-submit').click()
     await expect(page.getByText(/Pattern matched|Perfect bloom/i)).toBeVisible()
-    // After delay, round should advance
-    await expect(page.getByText('2')).toBeVisible({ timeout: 3000 })
+    // After delay, round should advance — use the HUD round counter (data-testid='round-value')
+    await expect(page.getByTestId('round-value')).toContainText('2', { timeout: 3000 })
   })
 
   test('all 6 rounds complete and reach the End screen', async ({ page }) => {
+    test.setTimeout(25000)
     // Round 1 — line2
     await clickNodes(page, [NODE_A, NODE_B])
     await page.getByTestId('btn-submit').click()
@@ -174,12 +176,14 @@ test.describe('IsoBloom — End Screen', () => {
   }
 
   test('End screen shows final score and rating', async ({ page }) => {
+    test.setTimeout(25000)
     await completeGame(page)
     await expect(page.getByText('Final Score')).toBeVisible()
     await expect(page.getByText('Patterns Found')).toBeVisible()
   })
 
   test('Play Again returns to title screen', async ({ page }) => {
+    test.setTimeout(25000)
     await completeGame(page)
     await page.getByTestId('btn-restart').click()
     await expect(page.getByTestId('btn-start')).toBeVisible({ timeout: 2000 })
