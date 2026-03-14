@@ -1,0 +1,88 @@
+/* ============================================================
+   IsoBloom: The Flower Garden — Global Styles
+   Sacred geometry · neon greenhouse · hydroponic garden
+   ============================================================ */
+
+/* ---------- Reset & base ---------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Palette */
+  --bg-deep:    #07091a;
+  --bg-mid:     #0d1530;
+  --bg-card:    #0f1a38;
+  --clr-teal:   #00e8c8;
+  --clr-cyan:   #38bdf8;
+  --clr-green:  #4ade80;
+  --clr-amber:  #fbbf24;
+  --clr-red:    #f87171;
+  --clr-purple: #a78bfa;
+  --clr-text:   #e0f0ff;
+  --clr-muted:  #7090b0;
+
+  /* Glow helpers */
+  --glow-teal:  0 0 8px #00e8c8, 0 0 20px #00e8c844;
+  --glow-green: 0 0 8px #4ade80, 0 0 20px #4ade8044;
+  --glow-cyan:  0 0 8px #38bdf8, 0 0 20px #38bdf844;
+
+  /* Shape */
+  --radius-sm:  6px;
+  --radius-md:  12px;
+  --radius-lg:  20px;
+
+  /* Typography */
+  --font-mono:  'Courier New', Courier, monospace;
+}
+
+/* ---------- HTML / Body ---------- */
+html, body { height: 100%; }
+
+body {
+  background:  var(--bg-deep);
+  color:       var(--clr-text);
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  min-height:  100vh;
+  overflow-x:  hidden;
+  /* Subtle starfield / deep-space texture via radial gradients */
+  background-image:
+    radial-gradient(ellipse at 20% 10%,  #0d1d3a 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 90%,  #060e20 0%, transparent 60%),
+    radial-gradient(ellipse at 50% 50%,  #080e24 0%, transparent 100%);
+}
+
+#app { min-height: 100vh; }
+
+/* ---------- Scrollbar (Chromium) ---------- */
+::-webkit-scrollbar       { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: #1e3060; border-radius: 3px; }
+
+/* ---------- Focus ring — accessibility ---------- */
+:focus-visible {
+  outline: 2px solid var(--clr-teal);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* ---------- Utility classes ---------- */
+.visually-hidden {
+  position:  absolute;
+  width:     1px;
+  height:    1px;
+  overflow:  hidden;
+  clip:      rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Headings ---------- */
+h1, h2, h3 { line-height: 1.15; }
+
+/* ---------- Button reset ---------- */
+button {
+  font-family: inherit;
+  font-size:   inherit;
+}
+
+/* ---------- Strong / em ---------- */
+strong { color: var(--clr-teal); font-weight: 600; }
+em     { color: var(--clr-cyan); font-style: italic; }
