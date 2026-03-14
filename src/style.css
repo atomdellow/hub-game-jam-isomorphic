@@ -1,0 +1,40 @@
+/* ============================================================
+   IsoBloom: The Flower Garden — Global Styles
+   Sacred geometry · neon greenhouse · hydroponic garden
+   ============================================================ */
+
+/* ---------- Reset & base ---------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-deep:    #07091a;
+  --bg-mid:     #0d1530;
+  --bg-card:    #0f1a38;
+  --clr-teal:   #00e8c8;
+  --clr-cyan:   #38bdf8;
+  --clr-green:  #4ade80;
+  --clr-amber:  #fbbf24;
+  --clr-red:    #f87171;
+  --clr-purple: #a78bfa;
+  --clr-text:   #e0f0ff;
+  --clr-muted:  #7090b0;
+  --glow-teal:  0 0 8px #00e8c8, 0 0 20px #00e8c844;
+  --glow-green: 0 0 8px #4ade80, 0 0 20px #4ade8044;
+  --glow-cyan:  0 0 8px #38bdf8, 0 0 20px #38bdf844;
+  --radius-sm:  6px;
+  --radius-md:  12px;
+  --radius-lg:  20px;
+  --font-mono:  'Courier New', Courier, monospace;
+}
+
+html, body { height: 100%; }
+
+body {
+  background: var(--bg-deep);
+  color: var(--clr-text);
+  font-family: system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#app { min-height: 100vh; }
