@@ -1,0 +1,21 @@
+{
+  "name": "isobloom-flower-garden",
+  "version": "1.0.0",
+  "description": "IsoBloom: The Flower Garden — Pi Day 2026 Game Jam. A sacred-geometry pattern puzzle game built around graph isomorphism.",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
+  },
+  "dependencies": {
+    "vue": "^3.4.21"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.4",
+    "@playwright/test": "^1.43.0",
+    "vite": "^5.2.0"
+  }
+}
