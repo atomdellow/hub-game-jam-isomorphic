@@ -95,6 +95,48 @@ export const edges = [
   ['n15','n18'],
 ]
 
+// ── Zone (Flower-of-Life petal) definitions ──────────────────────────────────
+//
+// The 19-node board maps onto the "Seed of Life" sacred geometry:
+//   Zone 0 (Seed)  — the inner 7-node hexagon, always active from round 1.
+//   Zones 1–6      — one 2-node petal each, unlocked as rounds are won,
+//                    going clockwise from NW.
+//
+// Visual layout (letters = zone index):
+//
+//   Row +2:  1  -  2      zones NW & N
+//   Row +1:  1  0  0  3      centre seed + NE
+//   Row  0:  -  0  0  0  3
+//   Row -1:  6  0  0  5
+//   Row -2:  6  -  4  5      zones SW, S, SE
+//
+// Mathematically verified (Python, 2026-03-14):
+//   All 7 rounds use non-overlapping node sets that cover all 19 nodes.
+//   Each petal unlocks BEFORE its round is played, so the new nodes are
+//   reachable from the previously-active board via free bridge nodes.
+//
+export const ZONES = [
+  { id: 0, name: 'Seed of Life',    nodes: ['n4','n5','n8','n9','n10','n13','n14'] },
+  { id: 1, name: 'NW Petal',        nodes: ['n0','n3'] },
+  { id: 2, name: 'N Petal',         nodes: ['n1','n2'] },
+  { id: 3, name: 'NE Petal',        nodes: ['n6','n11'] },
+  { id: 4, name: 'SE Petal',        nodes: ['n15','n18'] },
+  { id: 5, name: 'S Petal',         nodes: ['n16','n17'] },
+  { id: 6, name: 'SW Petal',        nodes: ['n7','n12'] },
+]
+
+/**
+ * Returns the zone index (0–6) that owns a given node id, or -1 if not found.
+ * @param {string} nodeId
+ * @returns {number}
+ */
+export function getZoneForNode(nodeId) {
+  for (const zone of ZONES) {
+    if (zone.nodes.includes(nodeId)) return zone.id
+  }
+  return -1
+}
+
 // ── Convenience lookup ───────────────────────────────────────────────────────
 /** Returns a node object by id, or undefined. */
 export function getNode(id) {

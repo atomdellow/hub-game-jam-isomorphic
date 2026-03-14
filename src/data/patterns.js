@@ -1,51 +1,58 @@
 /**
  * patterns.js
  *
- * Defines twelve puzzle rounds in ascending difficulty.
+ * Defines the 7-round Flower of Life puzzle sequence.
+ *
+ * ── Zone-unlock mechanic ─────────────────────────────────────────────────────
+ * The 19-node board is divided into a centre "Seed of Life" hex (7 nodes) and
+ * six 2-node petal zones arranged around it. At the START of each round the
+ * next petal zone unlocks — its nodes become visible and interactive for the
+ * first time. The player must then place the target pattern using only the
+ * currently-unlocked, unclaimed nodes.
+ *
+ * Round → zone unlocked before the round begins:
+ *   R1  Zone 0  Seed of Life  (7 nodes)  — always active
+ *   R2  Zone 1  NW Petal      (+2 nodes)
+ *   R3  Zone 2  N Petal       (+2 nodes)
+ *   R4  Zone 3  NE Petal      (+2 nodes)
+ *   R5  Zone 4  SE Petal      (+2 nodes)
+ *   R6  Zone 5  S Petal       (+2 nodes)
+ *   R7  Zone 6  SW Petal      (+2 nodes)  — board complete
+ *
+ * ── Canonical node placements (verified non-overlapping, all 19 nodes used) ──
+ *   R1  line2      n4-n9                       seed only
+ *   R2  line3      n0-n3-n8                    uses NW petal
+ *   R3  triangle   n1-n2-n5 (all 3 edges)      uses N petal
+ *   R4  triangle   n6-n10-n11 (all 3 edges)    uses NE petal
+ *   R5  triangle   n14-n15-n18                 uses SE petal
+ *   R6  triangle   n13-n16-n17                 uses S petal
+ *   R7  line2      n7-n12                      uses SW petal
  *
  * ── Isomorphism detection strategy ──────────────────────────────────────────
- * Rather than solving the full graph-isomorphism problem, we use a
- * "jam-practical" signature approach:
- *
- *   1. Count selected nodes  →  must equal pattern.nodeCount
- *   2. Count edges within the selection  →  must equal pattern.edgeCount
- *   3. Compute sorted degree-sequence of the induced subgraph
- *      →  must match pattern.degreeSignature
- *
- * This cleanly distinguishes all twelve patterns below without ambiguity.
- *
- * ── Pattern degree signatures (unique per row) ───────────────────────────────
- *   line2      : n=2, e=1, [1,1]
- *   line3      : n=3, e=2, [1,1,2]
- *   triangle   : n=3, e=3, [2,2,2]
- *   fork       : n=4, e=3, [1,1,1,3]
- *   line4      : n=4, e=3, [1,1,2,2]
- *   kite       : n=4, e=4, [1,2,2,3]   (triangle + pendant)
- *   diamond    : n=4, e=5, [2,2,3,3]   (K₄-e, two triangles sharing one edge)
- *   line5      : n=5, e=4, [1,1,2,2,2]
- *   caterpillar: n=5, e=4, [1,1,1,2,3] (fork + one arm extended)
- *   tadpole    : n=5, e=5, [1,2,2,2,3] (triangle + two-node tail)
- *   bull       : n=5, e=5, [1,1,2,3,3] (triangle + two single pendants)
- *   doubleCat  : n=6, e=5, [1,1,1,2,2,3] (Y-fork with two arms extended)
+ * "Jam-practical" signature check (sufficient for all patterns used here):
+ *   1. nodeCount match
+ *   2. edgeCount of induced subgraph match
+ *   3. sorted degree-sequence of induced subgraph match
+ *   4. BFS connectivity check
  *
  * ── Preview SVG positions ────────────────────────────────────────────────────
  * Each pattern supplies `previewNodes` (100×100 canvas) and `previewEdges`
- * (index pairs into previewNodes) so TargetPatternCard can render a clean
- * abstract diagram without touching the real board.
+ * (index pairs into previewNodes) for TargetPatternCard.
  */
 
 export const patterns = [
-  // ── Round 1 ──────────────────────────────────────────────────────────────
+  // ── Round 1 — Seed of Life (7 nodes active) ──────────────────────────────
   {
     id:              'line2',
     name:            'Sprout Pair',
     round:           1,
+    unlocksZone:     0,        // zone unlocked AT THE START of this round
     nodeCount:       2,
     edgeCount:       1,
     degreeSignature: [1, 1],
     description:     'Two pods connected by a single nutrient line.',
     hint:            'Select any 2 adjacent nodes.',
-    flavor:          'A twin-sprout circuit — the simplest bloom.',
+    flavor:          'The seed stirs. Two cells reach toward each other.',
     previewNodes: [
       { x: 20, y: 50 },
       { x: 80, y: 50 },
@@ -53,17 +60,18 @@ export const patterns = [
     previewEdges: [[0, 1]],
   },
 
-  // ── Round 2 ──────────────────────────────────────────────────────────────
+  // ── Round 2 — NW Petal unlocks ───────────────────────────────────────────
   {
     id:              'line3',
     name:            'Growth Stem',
     round:           2,
+    unlocksZone:     1,
     nodeCount:       3,
     edgeCount:       2,
     degreeSignature: [1, 1, 2],
     description:     'Three pods in a straight nutrient chain.',
-    hint:            'Select 3 nodes in a line (no branching).',
-    flavor:          'Energy flows from root to tip — a living stem.',
+    hint:            'Select 3 nodes in a line — the new petal nodes form the tip.',
+    flavor:          'A shoot extends northward into the first new petal.',
     previewNodes: [
       { x: 15, y: 50 },
       { x: 50, y: 50 },
@@ -72,17 +80,18 @@ export const patterns = [
     previewEdges: [[0, 1], [1, 2]],
   },
 
-  // ── Round 3 ──────────────────────────────────────────────────────────────
+  // ── Round 3 — N Petal unlocks ─────────────────────────────────────────────
   {
     id:              'triangle',
     name:            'Seed Triangle',
     round:           3,
+    unlocksZone:     2,
     nodeCount:       3,
     edgeCount:       3,
     degreeSignature: [2, 2, 2],
     description:     'Three pods forming a closed triangular circuit.',
-    hint:            'Select 3 mutually connected nodes.',
-    flavor:          'A sacred triad — the first closed growth loop.',
+    hint:            'The two new top nodes and one bridge form a tight triangle.',
+    flavor:          'Sacred triad — the first closed growth loop blooms at the crown.',
     previewNodes: [
       { x: 50, y: 18 },
       { x: 18, y: 74 },
@@ -91,190 +100,83 @@ export const patterns = [
     previewEdges: [[0, 1], [1, 2], [2, 0]],
   },
 
-  // ── Round 4 ──────────────────────────────────────────────────────────────
+  // ── Round 4 — NE Petal unlocks ────────────────────────────────────────────
   {
-    id:              'fork',
-    name:            'Hydro Fork',
+    id:              'triangle',
+    name:            'Mirror Triangle',
     round:           4,
-    nodeCount:       4,
+    unlocksZone:     3,
+    nodeCount:       3,
     edgeCount:       3,
-    degreeSignature: [1, 1, 1, 3],
-    description:     'One hub pod with three branches — a Y-junction.',
-    hint:            'Select a central node and 3 neighbours that don\'t connect to each other.',
-    flavor:          'Nutrients split three ways at the junction node.',
+    degreeSignature: [2, 2, 2],
+    description:     'Three pods forming a closed triangular circuit on the right side.',
+    hint:            'The two new NE nodes plus the shared bridge close a triangle.',
+    flavor:          'The crown\'s mirror — twin triangles now frame the centre hex.',
     previewNodes: [
-      { x: 50, y: 15 },   // stem tip
-      { x: 50, y: 50 },   // hub (degree 3)
-      { x: 18, y: 82 },   // branch left
-      { x: 82, y: 82 },   // branch right
+      { x: 50, y: 18 },
+      { x: 18, y: 74 },
+      { x: 82, y: 74 },
     ],
-    previewEdges: [[0, 1], [1, 2], [1, 3]],
+    previewEdges: [[0, 1], [1, 2], [2, 0]],
   },
 
-  // ── Round 5 ──────────────────────────────────────────────────────────────
+  // ── Round 5 — SE Petal unlocks ────────────────────────────────────────────
   {
-    id:              'line4',
-    name:            'Long Runner',
+    id:              'triangle',
+    name:            'Root Triangle',
     round:           5,
-    nodeCount:       4,
+    unlocksZone:     4,
+    nodeCount:       3,
     edgeCount:       3,
-    degreeSignature: [1, 1, 2, 2],
-    description:     'Four pods in a straight chain — two interior, two end-caps.',
-    hint:            'Select 4 nodes in a line (no branching or loops).',
-    flavor:          'A long hydro runner — the backbone of the garden.',
+    degreeSignature: [2, 2, 2],
+    description:     'Three pods forming a closed triangular circuit in the lower right.',
+    hint:            'The two SE petal nodes plus the lower-right bridge close a triangle.',
+    flavor:          'The roots mirror the crown — sacred symmetry takes shape.',
     previewNodes: [
-      { x: 10, y: 50 },
-      { x: 37, y: 50 },
-      { x: 63, y: 50 },
-      { x: 90, y: 50 },
+      { x: 50, y: 18 },
+      { x: 18, y: 74 },
+      { x: 82, y: 74 },
     ],
-    previewEdges: [[0, 1], [1, 2], [2, 3]],
+    previewEdges: [[0, 1], [1, 2], [2, 0]],
   },
 
-  // ── Round 6 ──────────────────────────────────────────────────────────────
+  // ── Round 6 — S Petal unlocks ─────────────────────────────────────────────
   {
-    id:              'kite',
-    name:            'Bloom Kite',
+    id:              'triangle',
+    name:            'Base Triangle',
     round:           6,
-    nodeCount:       4,
-    edgeCount:       4,
-    degreeSignature: [1, 2, 2, 3],
-    description:     'A triangle with one extra pod branching from a corner.',
-    hint:            'Find a triangle of 3 nodes, then add 1 more node connected to exactly one corner.',
-    flavor:          'A sacred kite — geometry flowering into new growth.',
+    unlocksZone:     5,
+    nodeCount:       3,
+    edgeCount:       3,
+    degreeSignature: [2, 2, 2],
+    description:     'Three pods forming a closed triangular circuit at the base.',
+    hint:            'The two S petal nodes plus the lower-left bridge form a triangle.',
+    flavor:          'The garden floor crystallises — five of six petals are in bloom.',
     previewNodes: [
-      { x: 82, y: 18 },   // pendant (degree 1)
-      { x: 50, y: 40 },   // triangle top (degree 3 — connects to pendant + 2 in triangle)
-      { x: 20, y: 82 },   // triangle left (degree 2)
-      { x: 80, y: 82 },   // triangle right (degree 2)
+      { x: 50, y: 18 },
+      { x: 18, y: 74 },
+      { x: 82, y: 74 },
     ],
-    previewEdges: [[0, 1], [1, 2], [2, 3], [3, 1]],
+    previewEdges: [[0, 1], [1, 2], [2, 0]],
   },
 
-  // ── Round 7 ──────────────────────────────────────────────────────────────
+  // ── Round 7 — SW Petal unlocks — Board Complete! ──────────────────────────
   {
-    id:              'diamond',
-    name:            'Twin Bloom',
+    id:              'line2',
+    name:            'Final Sprout',
     round:           7,
-    nodeCount:       4,
-    edgeCount:       5,
-    degreeSignature: [2, 2, 3, 3],
-    description:     'Two triangular circuits sharing a common nutrient bond.',
-    hint:            'Find a shared edge where each endpoint has one additional unique neighbour — two triangles sharing one side.',
-    flavor:          'Symmetry doubles the bloom — two petals from a single stem.',
+    unlocksZone:     6,
+    nodeCount:       2,
+    edgeCount:       1,
+    degreeSignature: [1, 1],
+    description:     'The last two pods — the Flower of Life is complete.',
+    hint:            'Select the 2 newly unlocked SW nodes — they connect directly.',
+    flavor:          'The seventh petal opens. The Flower of Life is complete.',
     previewNodes: [
-      { x: 50, y: 15 },   // top (degree 2)
-      { x: 20, y: 55 },   // left hub (degree 3)
-      { x: 80, y: 55 },   // right hub (degree 3)
-      { x: 50, y: 88 },   // bottom (degree 2)
+      { x: 20, y: 50 },
+      { x: 80, y: 50 },
     ],
-    previewEdges: [[0, 1], [0, 2], [1, 2], [1, 3], [2, 3]],
-  },
-
-  // ── Round 8 ──────────────────────────────────────────────────────────────
-  {
-    id:              'line5',
-    name:            'Long Stem',
-    round:           8,
-    nodeCount:       5,
-    edgeCount:       4,
-    degreeSignature: [1, 1, 2, 2, 2],
-    description:     'Five pods stretching in a single unbroken chain.',
-    hint:            'Select 5 nodes that form a straight, unbranching path — no diagonals allowed.',
-    flavor:          'Energy flows from seed to sky — the longest reach yet.',
-    previewNodes: [
-      { x: 10, y: 50 },
-      { x: 30, y: 50 },
-      { x: 50, y: 50 },
-      { x: 70, y: 50 },
-      { x: 90, y: 50 },
-    ],
-    previewEdges: [[0, 1], [1, 2], [2, 3], [3, 4]],
-  },
-
-  // ── Round 9 ──────────────────────────────────────────────────────────────
-  {
-    id:              'caterpillar',
-    name:            'Arching Tendril',
-    round:           9,
-    nodeCount:       5,
-    edgeCount:       4,
-    degreeSignature: [1, 1, 1, 2, 3],
-    description:     'A Y-fork with one arm reaching one step further.',
-    hint:            'Find a hub with 3 branches, then extend exactly one branch by one more node.',
-    flavor:          'One shoot grows bolder than the rest — the reaching tendril.',
-    previewNodes: [
-      { x: 60, y: 50 },   // hub (degree 3)
-      { x: 85, y: 20 },   // arm A tip (degree 1)
-      { x: 85, y: 80 },   // arm B tip (degree 1)
-      { x: 30, y: 50 },   // arm C inner (degree 2)
-      { x: 10, y: 50 },   // arm C extension tip (degree 1)
-    ],
-    previewEdges: [[0, 1], [0, 2], [0, 3], [3, 4]],
-  },
-
-  // ── Round 10 ─────────────────────────────────────────────────────────────
-  {
-    id:              'tadpole',
-    name:            'Comet Bloom',
-    round:           10,
-    nodeCount:       5,
-    edgeCount:       5,
-    degreeSignature: [1, 2, 2, 2, 3],
-    description:     'A closed triangular circuit with a two-node tail trailing behind.',
-    hint:            'Enclose a triangle, then extend a two-node chain from one of its vertices.',
-    flavor:          'The tail draws energy behind the spinning triad — a living comet.',
-    previewNodes: [
-      { x: 22, y: 30 },   // triangle left (degree 2)
-      { x: 50, y: 55 },   // triangle vertex — tail root (degree 3)
-      { x: 22, y: 75 },   // triangle right (degree 2)
-      { x: 75, y: 45 },   // tail mid (degree 2)
-      { x: 93, y: 30 },   // tail tip (degree 1)
-    ],
-    previewEdges: [[0, 1], [0, 2], [1, 2], [1, 3], [3, 4]],
-  },
-
-  // ── Round 11 ─────────────────────────────────────────────────────────────
-  {
-    id:              'bull',
-    name:            'Horned Bloom',
-    round:           11,
-    nodeCount:       5,
-    edgeCount:       5,
-    degreeSignature: [1, 1, 2, 3, 3],
-    description:     'A triangular core with two antennae sprouting from different corners.',
-    hint:            'Form a triangle, then add a single pendant node at two different corners.',
-    flavor:          'Paired horns reach for the light — the sacred bull of the garden.',
-    previewNodes: [
-      { x: 15, y: 15 },   // left horn tip (degree 1)
-      { x: 30, y: 48 },   // left triangle hub (degree 3)
-      { x: 70, y: 48 },   // right triangle hub (degree 3)
-      { x: 85, y: 15 },   // right horn tip (degree 1)
-      { x: 50, y: 82 },   // triangle base (degree 2)
-    ],
-    previewEdges: [[0, 1], [1, 2], [1, 4], [2, 4], [2, 3]],
-  },
-
-  // ── Round 12 ─────────────────────────────────────────────────────────────
-  {
-    id:              'doubleCat',
-    name:            'Twin Tendril Fork',
-    round:           12,
-    nodeCount:       6,
-    edgeCount:       5,
-    degreeSignature: [1, 1, 1, 2, 2, 3],
-    description:     'A central hub with three branches, two of which grow one step further.',
-    hint:            'Find a Y-junction, then extend two of its three arms by one extra node each.',
-    flavor:          'The double reaching — two shoots breaking free of the junction.',
-    previewNodes: [
-      { x: 50, y: 55 },   // hub (degree 3)
-      { x: 75, y: 25 },   // arm A inner (degree 2)
-      { x: 93, y: 10 },   // arm A tip (degree 1)
-      { x: 25, y: 55 },   // arm B inner (degree 2)
-      { x: 10, y: 55 },   // arm B tip (degree 1)
-      { x: 75, y: 82 },   // arm C tip (degree 1)
-    ],
-    previewEdges: [[0, 1], [1, 2], [0, 3], [3, 4], [0, 5]],
+    previewEdges: [[0, 1]],
   },
 ]
 
@@ -287,9 +189,7 @@ export function getPatternForRound(index) {
 }
 
 /**
- * Rounds per play session.
- * The board has 19 nodes; the first 5 patterns claim exactly 16, leaving
- * 3 spares — tight enough to force strategic placement without deadlocking.
- * The remaining 7 patterns in the array are reserved for future level packs.
+ * Total number of rounds in a session.
+ * One round per zone: 1 seed + 6 petals = 7 rounds.
  */
-export const TOTAL_ROUNDS = 5
+export const TOTAL_ROUNDS = patterns.length

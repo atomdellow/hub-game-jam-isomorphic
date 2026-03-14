@@ -11,9 +11,9 @@
       />
     </Transition>
 
-    <!-- ── Playing screen ─────────────────────────────────────────── -->
+    <!-- ── Playing screen (also shown during zone-reveal) ─────────────────── -->
     <Transition name="fade">
-      <div v-if="phase === 'playing'" class="playing-layout">
+      <div v-if="phase === 'playing' || phase === 'zone-reveal'" class="playing-layout">
         <!-- Top HUD bar -->
         <GameHud
           :currentRound="currentRound"
@@ -21,6 +21,7 @@
           :score="score"
           :attemptsLeft="attemptsLeft"
           :maxAttempts="MAX_ATTEMPTS"
+          :unlockedZones="unlockedZones"
         />
 
         <!-- Main play area -->
@@ -43,6 +44,8 @@
               :correctIds="correctIds"
               :hasError="feedbackType === 'error'"
               :claimedByRound="claimedByRound"
+              :unlockedZones="unlockedZones"
+              :newlyUnlockedZone="newlyUnlockedZone"
               @nodeClick="toggleNode"
             />
 
@@ -133,6 +136,8 @@ const {
   totalRounds,
   claimedByRound,
   attemptsLeft,
+  unlockedZones,
+  newlyUnlockedZone,
   startGame,
   toggleNode,
   resetSelection,
