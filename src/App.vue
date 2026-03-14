@@ -1,5 +1,7 @@
 <template>
   <div class="app-shell">
+    <!-- Always-on subtle particle background -->
+    <ParticleBg />
 
     <!-- ── Title screen ──────────────────────────────────────────────── -->
     <Transition name="fade" mode="out-in">
@@ -95,6 +97,7 @@
 
 <script setup>
 import { useGameState }      from './composables/useGameState.js'
+import ParticleBg            from './components/ParticleBg.vue'
 import StartScreen           from './components/StartScreen.vue'
 import EndScreen             from './components/EndScreen.vue'
 import GameHud               from './components/GameHud.vue'
@@ -123,9 +126,11 @@ const {
 <style scoped>
 /* ── App shell ──────────────────────────────────────────────────────────── */
 .app-shell {
+  position:   relative;
   min-height: 100vh;
   display:    flex;
   flex-direction: column;
+  z-index:    1;
 }
 
 /* ── Playing layout ─────────────────────────────────────────────────────── */
