@@ -9,6 +9,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.0.1] — 2026-03-14 · TICKET-018
+
+### Fixed
+- **Vue 3 Transition rendering bug** (`App.vue`): replaced single `<Transition mode="out-in">` wrapping three `v-if/v-else-if/v-else` children with three independent `<Transition name="fade">` wrappers — Vue 3 only supports a single direct child per `<Transition>`, so `mode="out-in"` with multiple children blocked the entering screen from ever mounting after "Start" was clicked
+- **FORK round test nodes** (`e2e/game.spec.js`): swapped `n4` → `n5` as one arm of the Y-fork — `n4–n8` is a board edge, so the original `[n9,n4,n8,n14]` selection produced 4 edges and degree sequence `[1,2,2,3]` (kite), not the required `[1,1,1,3]` (fork)
+- **KITE round test nodes** (`e2e/game.spec.js`): swapped `n4` → `n7` as the pendant node — the original `[n8,n9,n13,n4]` selection produced 5 edges and degree sequence `[2,2,3,3]` matching no pattern; `n7` (pendant from `n8`) gives 4 edges and `[1,2,2,3]`
+- **Strict-mode assertion** (`e2e/game.spec.js` test-9): replaced `getByText('2')` with `getByTestId('round-value').toContainText('2')` to avoid a Playwright strict-mode violation where two DOM elements (`💡 Select any 2 adjacent nodes.` and `/ 2 needed`) simultaneously matched the broad text selector
+- Added `data-testid="round-value"` to the round counter span in `GameHud.vue`
+- Added `test.setTimeout(25000)` to three multi-round tests to provide adequate time headroom
+
+---
+
 ## [1.0.0] — 2026-03-13 · TICKET-017
 
 ### Added
