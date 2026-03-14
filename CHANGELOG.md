@@ -8,6 +8,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ---
+## [1.4.0] — 2026-03-14 · TICKET-021 (redesign)
+
+### Changed
+- **Pattern sequence redesigned** — 5 rounds with genuinely varied topologies, replacing the 4× repeated triangle sequence from v1.3.0
+  - R1 `line2`    `[n0, n1]`              — degrees `[1,1]`
+  - R2 `triangle` `[n4, n5, n9]`          — degrees `[2,2,2]`
+  - R3 `line3`    `[n7, n12, n16]`        — degrees `[1,1,2]`
+  - R4 `fork`     `[n10, n13, n14, n18]`  — degrees `[1,1,1,3]`  hub=n14
+  - R5 `line4`    `[n2, n6, n11, n15]`    — degrees `[1,1,2,2]`
+  - 16/19 nodes claimed; `n3, n8, n17` left unclaimed; all placements Python-verified non-overlapping
+- **Removed zone-gating** — all 19 nodes are active and clickable from round 1; zone expansion is reserved for a future multi-hex feature
+- Stripped `unlockedZones`, `newlyUnlockedZone`, `unlockedNodeIds`, `zone-reveal` phase, and `ZONE_REVEAL_MS` from `useGameState`
+- Removed zone UI from components: ghost nodes, pulse-ring SVG circles, zone-reveal banner, zone-petal HUD row
+- Restored round progress dots in `GameHud`
+- `TOTAL_ROUNDS` changed from 7 → 5; max possible score 1050 → 750
+- E2E tests rewritten for 5-round open-board game (15 tests, all passing)
+
+---
 ## [1.3.0] — 2026-03-14 · TICKET-021
 
 ### Added

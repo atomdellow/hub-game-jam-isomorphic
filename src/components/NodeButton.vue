@@ -1,25 +1,11 @@
 <template>
   <!-- SVG <g> representing a single clickable plant-pod node. -->
-  <!-- Locked (zone not yet revealed): rendered as a faint ghost, non-interactive. -->
   <g
-    v-if="!isUnlocked"
-    class="node-group node-locked-ghost"
-    :data-node-id="node.id"
-    aria-hidden="true"
-  >
-    <circle :cx="node.x" :cy="node.y" :r="INNER_R" class="node-body" />
-    <circle :cx="node.x" :cy="node.y" :r="DOT_R"   class="node-dot" />
-  </g>
-
-  <!-- Unlocked: fully interactive node -->
-  <g
-    v-else
     :class="['node-group', {
-      'node-selected':      selected && claimedRound === null,
-      'node-correct':       correct,
-      'node-hover':         hover && claimedRound === null,
-      'node-claimed':       claimedRound !== null,
-      'node-newly-unlocked': isNewlyUnlocked,
+      'node-selected': selected && claimedRound === null,
+      'node-correct':  correct,
+      'node-hover':    hover && claimedRound === null,
+      'node-claimed':  claimedRound !== null,
     }]"
     :style="claimedRound !== null ? { '--claimed-clr': ROUND_COLORS[claimedRound - 1] } : {}"
     :data-node-id="node.id"
@@ -64,13 +50,9 @@ const props = defineProps({
   correct:         { type: Boolean, default: false },
   /**
    * null  = free to select
-   * 1–7   = locked; claimed by that round number
+   * 1–5   = locked; claimed by that round number
    */
-  claimedRound:    { type: Number,  default: null },
-  /** Is this node's zone unlocked yet? If false → ghost rendering. */
-  isUnlocked:      { type: Boolean, default: true },
-  /** Was this node just revealed this round? Drives pulse animation. */
-  isNewlyUnlocked: { type: Boolean, default: false },
+  claimedRound: { type: Number,  default: null },
 })
 
 const emit = defineEmits(['click'])
