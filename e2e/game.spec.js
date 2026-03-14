@@ -1,50 +1,55 @@
 /**
  * e2e/game.spec.js
  *
- * End-to-end tests for IsoBloom: The Flower Garden
+ * End-to-end tests for IsoBloom: The Flower Garden — v1.3 zone-unlock mechanic
  *
  * Coverage:
- *  1. Title screen renders and Start button works
- *  2. Game HUD appears after starting (round counter + attempt hearts)
- *  3. Nodes are clickable and selection is shown
- *  4. Claimed nodes cannot be re-selected after a round is solved
- *  5. Reset button clears selection
- *  6. Submit with wrong node count shows feedback + decrements heart
- *  7. Correct pattern advances the round counter
- *  8. All 5 rounds on the persistent board reach the End screen
- *  9. Play Again returns to start
- * 10. Exhausting attempts on a round shows the Fail screen
+ *  1.  Title screen renders and Start button works
+ *  2.  Game HUD appears with zone petal indicator
+ *  3.  Seed-zone nodes are clickable on round 1
+ *  4.  Locked petal nodes (zones not yet unlocked) are not interactive on round 1
+ *  5.  Reset button clears selection
+ *  6.  Submit with wrong count shows feedback + decrements heart
+ *  7.  Correct pattern in round 1 advances to round 2
+ *  8.  Zone-reveal banner appears after a win
+ *  9.  Claimed nodes cannot be re-selected after a round is solved
+ * 10.  NW petal nodes unlock and become interactive after round 1 win
+ * 11.  All 7 rounds complete on the growing board → End screen
+ * 12.  End screen shows final score and rating
+ * 13.  Play Again returns to title
+ * 14.  Exhausting 3 attempts shows the Fail screen
+ * 15.  Try Again from Fail screen returns to title
  */
 
 import { test, expect } from '@playwright/test'
 
-// ── UI helpers (round-agnostic adjacent pair) ─────────────────────────────────
-// n8 and n9 are adjacent; used for basic interaction tests that don't need to
-// complete a round (each test gets a fresh page so no claimed-node conflicts).
-const NODE_A = '[data-node-id="n8"]'
-const NODE_B = '[data-node-id="n9"]'
+// ── Canonical placements (Python-verified, all 19 nodes, no overlaps) ────────
+//
+//  Zone 0 (Seed, always active): n4 n5 n8 n9 n10 n13 n14
+//  R1  line2     [n4, n9]              unlocksZone 0  (Seed — already active)
+//  R2  line3     [n0, n3, n8]          unlocksZone 1  (NW Petal: n0, n3)
+//  R3  triangle  [n1, n2, n5]          unlocksZone 2  (N Petal: n1, n2)
+//  R4  triangle  [n6, n10, n11]        unlocksZone 3  (NE Petal: n6, n11)
+//  R5  triangle  [n14, n15, n18]       unlocksZone 4  (SE Petal: n15, n18)
+//  R6  triangle  [n13, n16, n17]       unlocksZone 5  (S Petal: n16, n17)
+//  R7  line2     [n7, n12]             unlocksZone 6  (SW Petal: n7, n12)
 
-// ── Board-completion combos — verified non-overlapping packing ────────────────
-//
-//   The 19-node board must hold all 5 pattern placements simultaneously.
-//   Verified by exhaustive edge-check (Python, 2026-03-13):
-//
-//   R1 line2    {n0, n1}               2 nodes  degrees [1,1]
-//   R2 line3    {n7, n12, n16}         3 nodes  degrees [1,1,2]    path n7-n12-n16
-//   R3 triangle {n14, n15, n18}        3 nodes  degrees [2,2,2]    all 3 mutually adjacent
-//   R4 fork     hub n5, arms n2,n4,n10 4 nodes  degrees [1,1,1,3]  no arm-arm edges
-//   R5 line4    path n3→n8→n13→n17     4 nodes  degrees [1,1,2,2]  straight chain
-//
-//   Union = 16 nodes.  Remaining unused: {n6, n9, n11}  ✓
-//
-const R1_LINE2    = ['[data-node-id="n0"]', '[data-node-id="n1"]']
-const R2_LINE3    = ['[data-node-id="n7"]', '[data-node-id="n12"]', '[data-node-id="n16"]']
-const R3_TRIANGLE = ['[data-node-id="n14"]', '[data-node-id="n15"]', '[data-node-id="n18"]']
-const R4_FORK     = ['[data-node-id="n5"]', '[data-node-id="n2"]', '[data-node-id="n4"]', '[data-node-id="n10"]']
-const R5_LINE4    = ['[data-node-id="n3"]', '[data-node-id="n8"]', '[data-node-id="n13"]', '[data-node-id="n17"]']
+const R1 = ['[data-node-id="n4"]',  '[data-node-id="n9"]']
+const R2 = ['[data-node-id="n0"]',  '[data-node-id="n3"]',  '[data-node-id="n8"]']
+const R3 = ['[data-node-id="n1"]',  '[data-node-id="n2"]',  '[data-node-id="n5"]']
+const R4 = ['[data-node-id="n6"]',  '[data-node-id="n10"]', '[data-node-id="n11"]']
+const R5 = ['[data-node-id="n14"]', '[data-node-id="n15"]', '[data-node-id="n18"]']
+const R6 = ['[data-node-id="n13"]', '[data-node-id="n16"]', '[data-node-id="n17"]']
+const R7 = ['[data-node-id="n7"]',  '[data-node-id="n12"]']
 
-/** All 5 rounds in order for the full-board completion tests */
-const ALL_BOARD_ROUNDS = [R1_LINE2, R2_LINE3, R3_TRIANGLE, R4_FORK, R5_LINE4]
+const ALL_ROUNDS = [R1, R2, R3, R4, R5, R6, R7]
+
+// Seed-zone nodes: always active from round 1
+const SEED_NODE_A = '[data-node-id="n4"]'
+const SEED_NODE_B = '[data-node-id="n9"]'
+
+// A petal node locked on round 1 (zone 1 NW petal, unlocked after round 1 win)
+const LOCKED_NODE_R1 = '[data-node-id="n0"]'
 
 /** Click every node in a selector array */
 async function clickNodes(page, selectors) {
@@ -53,16 +58,24 @@ async function clickNodes(page, selectors) {
   }
 }
 
-/** Start the game and complete all 5 rounds using the non-overlapping packing. */
+/**
+ * Play through a given number of rounds using the canonical combos,
+ * waiting for each advance + zone-reveal to finish (1400 + 600 = 2000ms).
+ */
+async function playRounds(page, count) {
+  for (let i = 0; i < count; i++) {
+    await clickNodes(page, ALL_ROUNDS[i])
+    await page.getByTestId('btn-submit').click()
+    await page.waitForTimeout(2200)
+  }
+}
+
+/** Start the game and complete all 7 rounds → End screen */
 async function completeGame(page) {
   await page.goto('/')
   await page.getByTestId('btn-start').click()
-  for (const combo of ALL_BOARD_ROUNDS) {
-    await clickNodes(page, combo)
-    await page.getByTestId('btn-submit').click()
-    await page.waitForTimeout(1600)
-  }
-  await page.waitForSelector('text=Garden Complete!', { timeout: 4000 })
+  await playRounds(page, 7)
+  await page.waitForSelector('text=Garden Complete!', { timeout: 5000 })
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -81,6 +94,7 @@ test.describe('IsoBloom — Start Screen', () => {
     await expect(page.getByText('Round')).toBeVisible()
     await expect(page.getByText('Score')).toBeVisible()
     await expect(page.getByText('Lives')).toBeVisible()
+    await expect(page.getByText('Garden')).toBeVisible()
   })
 })
 
@@ -90,33 +104,33 @@ test.describe('IsoBloom — Game Screen', () => {
     await page.getByTestId('btn-start').click()
   })
 
-  test('nodes are present on the board', async ({ page }) => {
-    await expect(page.locator(NODE_A)).toBeVisible()
+  test('seed-zone nodes are present and visible on round 1', async ({ page }) => {
+    await expect(page.locator(SEED_NODE_A)).toBeVisible()
+    await expect(page.locator(SEED_NODE_B)).toBeVisible()
   })
 
-  test('clicking a node selects it (selection count updates)', async ({ page }) => {
-    await page.locator(NODE_A).click({ force: true })
+  test('clicking a seed node selects it (selection count updates)', async ({ page }) => {
+    await page.locator(SEED_NODE_A).click({ force: true })
     await expect(page.getByText(/1 node selected/i)).toBeVisible()
   })
 
-  test('clicking two nodes shows correct selection count', async ({ page }) => {
-    await page.locator(NODE_A).click({ force: true })
-    await page.locator(NODE_B).click({ force: true })
+  test('clicking two seed nodes shows correct selection count', async ({ page }) => {
+    await page.locator(SEED_NODE_A).click({ force: true })
+    await page.locator(SEED_NODE_B).click({ force: true })
     await expect(page.getByText(/2 nodes selected/i)).toBeVisible()
   })
 
   test('Reset button clears selection', async ({ page }) => {
-    await page.locator(NODE_A).click({ force: true })
-    await page.locator(NODE_B).click({ force: true })
+    await page.locator(SEED_NODE_A).click({ force: true })
+    await page.locator(SEED_NODE_B).click({ force: true })
     await page.getByTestId('btn-reset').click()
     await expect(page.getByText(/0 nodes selected/i)).toBeVisible()
   })
 
   test('submit with wrong count shows feedback and decrements attempts', async ({ page }) => {
-    // Select only 1 node; round 1 needs 2
-    await page.locator(NODE_A).click({ force: true })
+    // Select only 1 node; round 1 (line2) needs exactly 2
+    await page.locator(SEED_NODE_A).click({ force: true })
     await page.getByTestId('btn-submit').click()
-    // Error message includes "select exactly" and "(2 attempts left)"
     await expect(page.getByText(/select exactly/i)).toBeVisible()
     await expect(page.getByText(/2 attempts left/i)).toBeVisible()
   })
@@ -125,15 +139,11 @@ test.describe('IsoBloom — Game Screen', () => {
     await expect(page.getByTestId('btn-submit')).toBeDisabled()
   })
 
-  test('claimed nodes cannot be clicked after a round is solved', async ({ page }) => {
-    // Complete round 1 using the non-overlapping R1 combo
-    await clickNodes(page, R1_LINE2)
-    await page.getByTestId('btn-submit').click()
-    await page.waitForTimeout(1600)   // wait for advance animation
-    // n0 and n1 should now be claimed (pointer-events: none)
-    const n0 = page.locator('[data-node-id="n0"]')
-    // The node should exist but have aria attribute indicating claimed
-    await expect(n0).toHaveAttribute('aria-label', /placed round 1/i)
+  test('locked petal node cannot be selected on round 1', async ({ page }) => {
+    // n0 is in zone 1 (NW petal) — locked as ghost on round 1
+    // ghost nodes have pointer-events:none → clicking should NOT increment selection
+    await page.locator(LOCKED_NODE_R1).click({ force: true })
+    await expect(page.getByText(/0 nodes selected/i)).toBeVisible()
   })
 })
 
@@ -143,35 +153,67 @@ test.describe('IsoBloom — Round Progression', () => {
     await page.getByTestId('btn-start').click()
   })
 
-  test('round 1 (line2): correct selection advances to round 2', async ({ page }) => {
-    await clickNodes(page, R1_LINE2)
+  test('round 1 (line2 n4+n9): correct selection advances to round 2', async ({ page }) => {
+    await clickNodes(page, R1)
     await page.getByTestId('btn-submit').click()
     await expect(page.getByText(/Pattern matched|Perfect bloom/i)).toBeVisible()
-    await expect(page.getByTestId('round-value')).toContainText('2', { timeout: 3000 })
+    await expect(page.getByTestId('round-value')).toContainText('2', { timeout: 4000 })
   })
 
-  test('all 5 rounds complete on the persistent board and reach the End screen', async ({ page }) => {
-    test.setTimeout(25000)
-    for (const combo of ALL_BOARD_ROUNDS) {
-      await clickNodes(page, combo)
-      await page.getByTestId('btn-submit').click()
-      await page.waitForTimeout(1600)
-    }
-    await expect(page.getByText('Garden Complete!')).toBeVisible({ timeout: 4000 })
+  test('after round 1 win, zone-reveal banner appears briefly', async ({ page }) => {
+    await clickNodes(page, R1)
+    await page.getByTestId('btn-submit').click()
+    await expect(page.getByText(/New zone unlocked/i)).toBeVisible({ timeout: 2000 })
+  })
+
+  test('claimed nodes show placed-round label after a round is solved', async ({ page }) => {
+    test.setTimeout(10000)
+    await clickNodes(page, R1)
+    await page.getByTestId('btn-submit').click()
+    await page.waitForTimeout(2200)
+    const n4 = page.locator('[data-node-id="n4"]')
+    await expect(n4).toHaveAttribute('aria-label', /placed round 1/i)
+  })
+
+  test('all 7 rounds complete on the growing board and reach the End screen', async ({ page }) => {
+    test.setTimeout(40000)
+    await playRounds(page, 7)
+    await expect(page.getByText('Garden Complete!')).toBeVisible({ timeout: 5000 })
     await expect(page.getByTestId('btn-restart')).toBeVisible()
+  })
+})
+
+test.describe('IsoBloom — Zone Unlock Visual', () => {
+  test('NW petal node (n0) becomes interactive after round 1 win', async ({ page }) => {
+    test.setTimeout(12000)
+    await page.goto('/')
+    await page.getByTestId('btn-start').click()
+
+    // Before round 1: n0 is locked ghost — clicking should not select it
+    await page.locator('[data-node-id="n0"]').click({ force: true })
+    await expect(page.getByText(/0 nodes selected/i)).toBeVisible()
+
+    // Complete round 1 to unlock zone 1 (NW petal)
+    await clickNodes(page, R1)
+    await page.getByTestId('btn-submit').click()
+    await page.waitForTimeout(2200)
+
+    // After zone unlock: n0 should now be clickable
+    await page.locator('[data-node-id="n0"]').click({ force: true })
+    await expect(page.getByText(/1 node selected/i)).toBeVisible()
   })
 })
 
 test.describe('IsoBloom — End Screen', () => {
   test('End screen shows final score and rating', async ({ page }) => {
-    test.setTimeout(25000)
+    test.setTimeout(40000)
     await completeGame(page)
     await expect(page.getByText('Final Score')).toBeVisible()
     await expect(page.getByText('Patterns Found')).toBeVisible()
   })
 
   test('Play Again returns to title screen', async ({ page }) => {
-    test.setTimeout(25000)
+    test.setTimeout(40000)
     await completeGame(page)
     await page.getByTestId('btn-restart').click()
     await expect(page.getByTestId('btn-start')).toBeVisible({ timeout: 2000 })
@@ -179,16 +221,14 @@ test.describe('IsoBloom — End Screen', () => {
 })
 
 test.describe('IsoBloom — Fail Screen', () => {
-  test('exhausting 3 attempts on a round shows the Fail screen', async ({ page }) => {
+  test('exhausting 3 attempts on round 1 shows the Fail screen', async ({ page }) => {
     test.setTimeout(20000)
     await page.goto('/')
     await page.getByTestId('btn-start').click()
 
-    // Submit a single-node selection 3 times (always wrong for line2 which needs 2).
-    // After the 3rd wrong submit isLocked=true, so we skip the Reset click on
-    // that iteration and just wait for the fail-transition timer (1400 ms).
+    // Submit single-node (wrong count for line2 which needs 2) three times
     for (let i = 0; i < 3; i++) {
-      await page.locator(NODE_A).click({ force: true })
+      await page.locator(SEED_NODE_A).click({ force: true })
       await page.getByTestId('btn-submit').click()
       if (i < 2) {
         await page.waitForTimeout(300)
@@ -206,7 +246,7 @@ test.describe('IsoBloom — Fail Screen', () => {
     await page.getByTestId('btn-start').click()
 
     for (let i = 0; i < 3; i++) {
-      await page.locator(NODE_A).click({ force: true })
+      await page.locator(SEED_NODE_A).click({ force: true })
       await page.getByTestId('btn-submit').click()
       if (i < 2) {
         await page.waitForTimeout(300)
@@ -219,3 +259,4 @@ test.describe('IsoBloom — Fail Screen', () => {
     await expect(page.getByTestId('btn-start')).toBeVisible({ timeout: 2000 })
   })
 })
+

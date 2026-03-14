@@ -2,31 +2,35 @@
  * useGameState.js
  *
  * Central game state composable.
- * Manages the full lifecycle: start → playing rounds (persistent board) → end / failed.
+ * Manages the full lifecycle: start → playing rounds (zone-unlock board) → end / failed.
  *
- * v1.2 — Persistent Board mechanic:
- *   • Correctly-placed patterns claim their nodes; those nodes are locked for
- *     all subsequent rounds (tracked in `claimedByRound`).
+ * v1.3 — Flower of Life zone-unlock mechanic:
+ *   • Board starts with just the 7-node Seed of Life hex.
+ *   • Each round begins by unlocking the next petal zone (+2 nodes).
+ *   • Correctly-placed patterns claim their nodes; those nodes are locked
+ *     for all subsequent rounds (tracked in `claimedByRound`).
  *   • Each round allows MAX_ATTEMPTS wrong submissions before the game fails.
  *   • phase can now be 'start' | 'playing' | 'end' | 'failed'.
  */
 
 import { ref, computed } from 'vue'
-import { patterns, TOTAL_ROUNDS } from '../data/patterns.js'
-import { checkPattern }           from './usePatternMatcher.js'
-import { edges }                  from '../data/boardGraph.js'
+import { patterns, TOTAL_ROUNDS }    from '../data/patterns.js'
+import { ZONES }                     from '../data/boardGraph.js'
+import { checkPattern }              from './usePatternMatcher.js'
+import { edges }                     from '../data/boardGraph.js'
 
 // ── Scoring constants ─────────────────────────────────────────────────────────
 const BASE_SCORE          = 100
 const FIRST_ATTEMPT_BONUS = 50
 const ADVANCE_DELAY_MS    = 1400   // pause after correct solve before next round
+const ZONE_REVEAL_MS      = 600    // brief highlight before gameplay starts
 
 /** Wrong-submission budget per round before the run fails. */
 export const MAX_ATTEMPTS = 3
 
 // ── Game phases ──────────────────────────────────────────────────────────────
 /**
- * @typedef {'start'|'playing'|'end'|'failed'} GamePhase
+ * @typedef {'start'|'zone-reveal'|'playing'|'end'|'failed'} GamePhase
  */
 
 export function useGameState() {
@@ -36,45 +40,76 @@ export function useGameState() {
   const roundIndex     = ref(0)
   const selectedIds    = ref([])
   const correctIds     = ref([])
-  const attemptCount   = ref(0)           // first-attempt bonus tracker
-  const attemptsLeft   = ref(MAX_ATTEMPTS) // wrong-answer budget for current round
+  const attemptCount   = ref(0)
+  const attemptsLeft   = ref(MAX_ATTEMPTS)
   const feedbackMsg    = ref('')
   const feedbackType   = ref('')
   const isLocked       = ref(false)
 
   /**
    * claimedByRound: nodeId → 1-based round number that claimed it.
-   * Survives across rounds within a session; reset only on full restart.
+   * Survives across rounds; reset only on full restart.
    * @type {import('vue').Ref<Record<string, number>>}
    */
   const claimedByRound = ref({})
+
+  /**
+   * unlockedZones: set of zone IDs that have been revealed so far.
+   * Zone 0 (Seed) is always unlocked from the start.
+   * @type {import('vue').Ref<Set<number>>}
+   */
+  const unlockedZones = ref(new Set([0]))
+
+  /**
+   * newlyUnlockedZone: the zone ID that was just revealed this round
+   * (null between rounds or on round 1 seed). Used to drive the glow animation.
+   * @type {import('vue').Ref<number|null>}
+   */
+  const newlyUnlockedZone = ref(null)
 
   // ── Computed helpers ───────────────────────────────────────────────────────
   const currentPattern  = computed(() => patterns[roundIndex.value] ?? null)
   const currentRound    = computed(() => roundIndex.value + 1)
   const totalRounds     = computed(() => TOTAL_ROUNDS)
-  const isPlaying       = computed(() => phase.value === 'playing')
+  const isPlaying       = computed(() => phase.value === 'playing' || phase.value === 'zone-reveal')
+
+  /**
+   * Set of node IDs that are currently unlocked (visible + interactive).
+   * A node is unlocked if its zone has been revealed.
+   */
+  const unlockedNodeIds = computed(() => {
+    const ids = new Set()
+    for (const zone of ZONES) {
+      if (unlockedZones.value.has(zone.id)) {
+        zone.nodes.forEach(id => ids.add(id))
+      }
+    }
+    return ids
+  })
 
   // ── Actions ────────────────────────────────────────────────────────────────
 
   function startGame() {
-    score.value          = 0
-    roundIndex.value     = 0
-    selectedIds.value    = []
-    correctIds.value     = []
-    attemptCount.value   = 0
-    attemptsLeft.value   = MAX_ATTEMPTS
-    feedbackMsg.value    = ''
-    feedbackType.value   = ''
-    isLocked.value       = false
-    claimedByRound.value = {}
-    phase.value          = 'playing'
+    score.value             = 0
+    roundIndex.value        = 0
+    selectedIds.value       = []
+    correctIds.value        = []
+    attemptCount.value      = 0
+    attemptsLeft.value      = MAX_ATTEMPTS
+    feedbackMsg.value       = ''
+    feedbackType.value      = ''
+    isLocked.value          = false
+    claimedByRound.value    = {}
+    unlockedZones.value     = new Set([0])
+    newlyUnlockedZone.value = null
+    phase.value             = 'playing'
   }
 
-  /** Toggle a node's selection. Blocked for claimed or locked nodes. */
+  /** Toggle a node's selection. Blocked for claimed, locked, or not-yet-unlocked nodes. */
   function toggleNode(id) {
     if (isLocked.value) return
-    if (claimedByRound.value[id] !== undefined) return   // already claimed
+    if (!unlockedNodeIds.value.has(id)) return          // zone not yet revealed
+    if (claimedByRound.value[id] !== undefined) return  // already claimed
     const idx = selectedIds.value.indexOf(id)
     if (idx === -1) {
       selectedIds.value = [...selectedIds.value, id]
@@ -143,6 +178,32 @@ export function useGameState() {
     const nextIdx = roundIndex.value + 1
     if (nextIdx >= TOTAL_ROUNDS) {
       phase.value = 'end'
+      return
+    }
+
+    // Unlock the next zone before showing the new round
+    const nextPattern = patterns[nextIdx]
+    if (nextPattern && nextPattern.unlocksZone != null) {
+      const zoneId = nextPattern.unlocksZone
+      newlyUnlockedZone.value = zoneId
+      const newSet = new Set(unlockedZones.value)
+      newSet.add(zoneId)
+      unlockedZones.value = newSet
+
+      // Brief "zone reveal" phase so the player sees the new nodes light up
+      phase.value = 'zone-reveal'
+      setTimeout(() => {
+        newlyUnlockedZone.value = null
+        roundIndex.value   = nextIdx
+        selectedIds.value  = []
+        correctIds.value   = []
+        attemptCount.value = 0
+        attemptsLeft.value = MAX_ATTEMPTS
+        feedbackMsg.value  = ''
+        feedbackType.value = ''
+        isLocked.value     = false
+        phase.value        = 'playing'
+      }, ZONE_REVEAL_MS)
     } else {
       roundIndex.value   = nextIdx
       selectedIds.value  = []
@@ -152,7 +213,6 @@ export function useGameState() {
       feedbackMsg.value  = ''
       feedbackType.value = ''
       isLocked.value     = false
-      // claimedByRound persists across rounds — intentional
     }
   }
 
@@ -165,17 +225,19 @@ export function useGameState() {
   }
 
   function restartGame() {
-    phase.value          = 'start'
-    score.value          = 0
-    roundIndex.value     = 0
-    selectedIds.value    = []
-    correctIds.value     = []
-    attemptCount.value   = 0
-    attemptsLeft.value   = MAX_ATTEMPTS
-    feedbackMsg.value    = ''
-    feedbackType.value   = ''
-    isLocked.value       = false
-    claimedByRound.value = {}
+    phase.value             = 'start'
+    score.value             = 0
+    roundIndex.value        = 0
+    selectedIds.value       = []
+    correctIds.value        = []
+    attemptCount.value      = 0
+    attemptsLeft.value      = MAX_ATTEMPTS
+    feedbackMsg.value       = ''
+    feedbackType.value      = ''
+    isLocked.value          = false
+    claimedByRound.value    = {}
+    unlockedZones.value     = new Set([0])
+    newlyUnlockedZone.value = null
   }
 
   return {
@@ -190,11 +252,14 @@ export function useGameState() {
     isLocked,
     claimedByRound,
     attemptsLeft,
+    unlockedZones,
+    newlyUnlockedZone,
     // computed
     currentPattern,
     currentRound,
     totalRounds,
     isPlaying,
+    unlockedNodeIds,
     // actions
     startGame,
     toggleNode,

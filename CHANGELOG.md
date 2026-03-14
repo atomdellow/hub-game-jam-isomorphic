@@ -8,6 +8,43 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ---
+## [1.3.0] — 2026-03-14 · TICKET-021
+
+### Added
+- **Flower of Life zone-unlock mechanic**: the board now grows with each round win, revealing one new hexagonal petal zone at a time
+  - **Zone 0 — Seed of Life** (`n4 n5 n8 n9 n10 n13 n14`, 7 nodes): always active from game start
+  - **Zones 1–6** (2 nodes each, NW/N/NE/SE/S/SW petals): unlocked one per round as the player wins
+  - All 7 zones together form the 19-node Flower of Life — fully verified by Python exhaustive graph check (no isolated nodes, all patterns solvable)
+- **`ZONES` array and `getZoneForNode()`** exported from `boardGraph.js` — maps each of the 19 nodes to its zone ID
+- **`unlockedZones`** ref (`Set<number>`) and **`newlyUnlockedZone`** ref in `useGameState` — track which zones have been revealed and which was just unlocked
+- **`unlockedNodeIds`** computed (Set of active node IDs) in `useGameState` — `toggleNode` blocks clicks on nodes outside this set
+- **`zone-reveal` phase** (600 ms): after each correct solve, a brief highlight phase shows the newly unlocked nodes before gameplay resumes
+- **Zone-reveal banner**: "🌸 New zone unlocked!" floats above the board during the reveal phase with a purple-glow transition
+- **Zone-unlock pulse ring**: SVG `<circle>` expands outward from each newly revealed node during the reveal phase
+- **Ghost nodes**: locked (unrevealed) nodes render as faint translucent circles with `pointer-events: none` — present visually but non-interactive
+- **`isNewlyUnlocked` pulse** on `NodeButton`: unlocked nodes briefly animate with a lavender bloom glow on reveal
+- **Garden zone-petal HUD row**: replaces round progress dots with 7 `⬡` hex glyphs that glow purple as zones are unlocked
+- **7-round game sequence** (Python-verified non-overlapping packing, all 19 nodes claimed):
+  - R1 `line2`    `[n4, n9]`             → unlocks Zone 1 (NW Petal)
+  - R2 `line3`    `[n0, n3, n8]`         → unlocks Zone 2 (N Petal)
+  - R3 `triangle` `[n1, n2, n5]`         → unlocks Zone 3 (NE Petal)
+  - R4 `triangle` `[n6, n10, n11]`       → unlocks Zone 4 (SE Petal)
+  - R5 `triangle` `[n14, n15, n18]`      → unlocks Zone 5 (S Petal)
+  - R6 `triangle` `[n13, n16, n17]`      → unlocks Zone 6 (SW Petal)
+  - R7 `line2`    `[n7, n12]`            → board complete
+- `TOTAL_ROUNDS` updated from 5 → **7**
+
+### Changed
+- `patterns.js` completely rewritten — 7 zone-aware rounds, each with `unlocksZone` field
+- `useGameState._advanceRound()` now triggers zone unlock + 600 ms reveal phase between rounds
+- `useGameState.startGame()` / `restartGame()` reset `unlockedZones = new Set([0])`, `newlyUnlockedZone = null`
+- `GameBoard.vue` receives `unlockedZones` and `newlyUnlockedZone` props; computes `unlockedNodeIds` and `newlyUnlockedNodeIds` locally; imports `getNode` and `ZONES` from `boardGraph.js`
+- `NodeButton.vue` gains `isUnlocked` and `isNewlyUnlocked` props; renders as ghost `<g>` when `!isUnlocked`; round-colour array extended to 7 entries
+- `GameHud.vue` receives `unlockedZones` prop; zone-petal row replaces progress dots
+- `App.vue` wires `unlockedZones`, `newlyUnlockedZone` to `GameBoard` and `GameHud`; playing layout also shown during `phase === 'zone-reveal'`
+- E2E tests completely rewritten for 7-round zone-unlock flow (15 tests): locked-node interaction, zone-reveal banner, NW petal unlock, full 7-round board completion
+
+---
 ## [1.2.0] — 2026-03-13 · TICKET-020
 
 ### Added
