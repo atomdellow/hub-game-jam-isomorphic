@@ -28,6 +28,7 @@
         :node="node"
         :selected="selectedIds.includes(node.id)"
         :correct="correctIds.includes(node.id)"
+        :claimedRound="claimedByRound[node.id] ?? null"
         @click="emit('nodeClick', node.id)"
       />
     </svg>
@@ -42,11 +43,13 @@ import NodeButton       from './NodeButton.vue'
 
 const props = defineProps({
   /** Array of node IDs currently selected */
-  selectedIds: { type: Array, default: () => [] },
+  selectedIds:   { type: Array,  default: () => [] },
   /** Array of node IDs in the last correct solve */
-  correctIds:  { type: Array, default: () => [] },
+  correctIds:    { type: Array,  default: () => [] },
   /** True while the "wrong answer" feedback is showing */
-  hasError:    { type: Boolean, default: false },
+  hasError:      { type: Boolean, default: false },
+  /** Map of nodeId → round number (1-based) for claimed nodes */
+  claimedByRound: { type: Object, default: () => ({}) },
 })
 
 const emit = defineEmits(['nodeClick'])
