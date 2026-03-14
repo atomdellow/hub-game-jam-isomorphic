@@ -8,7 +8,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ---
+## [1.1.0] — 2026-03-13 · TICKET-019
 
+### Added
+- **6 new puzzle rounds** bringing the total from 6 → 12:
+  - **Round 7 — Twin Bloom** (`diamond`, K₄-e): two triangles sharing one edge — 4 nodes, 5 edges, degree signature `[2,2,3,3]`
+  - **Round 8 — Long Stem** (`line5`, P₅): five-node path — 5 nodes, 4 edges, `[1,1,2,2,2]`
+  - **Round 9 — Arching Tendril** (`caterpillar`): Y-fork with one arm extended one step further — 5 nodes, 4 edges, `[1,1,1,2,3]`
+  - **Round 10 — Comet Bloom** (`tadpole`): closed triangle with a two-node tail — 5 nodes, 5 edges, `[1,2,2,2,3]`
+  - **Round 11 — Horned Bloom** (`bull`): triangle with single pendants at two different corners — 5 nodes, 5 edges, `[1,1,2,3,3]`
+  - **Round 12 — Twin Tendril Fork** (`doubleCat`): Y-junction with two of three arms each extended one step — 6 nodes, 5 edges, `[1,1,1,2,2,3]`
+- Each new pattern has a unique `(nodeCount, edgeCount, degreeSignature)` triple; the existing degree-sequence isomorphism engine detects all 12 without any code changes to the matcher
+- E2E test suite updated: `ALL_ROUNDS` covers all 11 follow-up rounds, test timeouts bumped to 40 s for the multi-round tests
+- `EndScreen.vue` automatically shows `Max Possible` as `1800` (12 × 150 pts) — no code change required; it derives from `TOTAL_ROUNDS`
+
+---
 ## [1.0.1] — 2026-03-14 · TICKET-018
 
 ### Fixed
