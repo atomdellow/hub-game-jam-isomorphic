@@ -1,11 +1,25 @@
 <template>
   <!-- SVG <g> representing a single clickable plant-pod node. -->
+  <!-- Locked (zone not yet revealed): rendered as a faint ghost, non-interactive. -->
   <g
+    v-if="!isUnlocked"
+    class="node-group node-locked-ghost"
+    :data-node-id="node.id"
+    aria-hidden="true"
+  >
+    <circle :cx="node.x" :cy="node.y" :r="INNER_R" class="node-body" />
+    <circle :cx="node.x" :cy="node.y" :r="DOT_R"   class="node-dot" />
+  </g>
+
+  <!-- Unlocked: fully interactive node -->
+  <g
+    v-else
     :class="['node-group', {
-      'node-selected': selected && claimedRound === null,
-      'node-correct':  correct,
-      'node-hover':    hover && claimedRound === null,
-      'node-claimed':  claimedRound !== null,
+      'node-selected':      selected && claimedRound === null,
+      'node-correct':       correct,
+      'node-hover':         hover && claimedRound === null,
+      'node-claimed':       claimedRound !== null,
+      'node-newly-unlocked': isNewlyUnlocked,
     }]"
     :style="claimedRound !== null ? { '--claimed-clr': ROUND_COLORS[claimedRound - 1] } : {}"
     :data-node-id="node.id"
@@ -43,16 +57,20 @@ import { ref } from 'vue'
 
 const props = defineProps({
   /** Node data object from boardGraph.js { id, x, y, neighbors } */
-  node:         { type: Object,  required: true },
+  node:            { type: Object,  required: true },
   /** Is this node currently selected by the player? */
-  selected:     { type: Boolean, default: false },
+  selected:        { type: Boolean, default: false },
   /** Was this node part of the last correct solve (bloom state)? */
-  correct:      { type: Boolean, default: false },
+  correct:         { type: Boolean, default: false },
   /**
    * null  = free to select
-   * 1–5   = locked; claimed by that round number
+   * 1–7   = locked; claimed by that round number
    */
-  claimedRound: { type: Number,  default: null },
+  claimedRound:    { type: Number,  default: null },
+  /** Is this node's zone unlocked yet? If false → ghost rendering. */
+  isUnlocked:      { type: Boolean, default: true },
+  /** Was this node just revealed this round? Drives pulse animation. */
+  isNewlyUnlocked: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['click'])
@@ -62,8 +80,8 @@ const OUTER_R = 18
 const INNER_R = 12
 const DOT_R   = 3
 
-// One accent colour per round (purple → blue → teal → amber → pink)
-const ROUND_COLORS = ['#a78bfa', '#60a5fa', '#2dd4bf', '#fbbf24', '#f472b6']
+// One accent colour per round (purple → blue → teal → amber → pink → rose → cyan)
+const ROUND_COLORS = ['#a78bfa', '#60a5fa', '#2dd4bf', '#fbbf24', '#f472b6', '#fb7185', '#38bdf8']
 </script>
 
 <style scoped>
@@ -71,6 +89,42 @@ const ROUND_COLORS = ['#a78bfa', '#60a5fa', '#2dd4bf', '#fbbf24', '#f472b6']
 .node-group {
   cursor: pointer;
   outline: none;
+}
+
+/* ── Locked ghost (zone not yet unlocked) ──────────────────────────────────── */
+.node-locked-ghost {
+  cursor:         default;
+  pointer-events: none;
+}
+.node-locked-ghost .node-body {
+  fill:         #070e1e;
+  stroke:       #1a2d60;
+  stroke-width: 1.5;
+  opacity:      0.35;
+}
+.node-locked-ghost .node-dot {
+  fill:    #1a2d60;
+  opacity: 0.25;
+}
+
+/* ── Newly unlocked (pulse animation) ──────────────────────────────────────── */
+.node-newly-unlocked .node-body {
+  animation: newlyUnlockedPulse 0.6s ease-out;
+}
+.node-newly-unlocked .node-glow-ring {
+  stroke:  #d8b4fe;
+  opacity: 0.8;
+  animation: newlyUnlockedRing 0.6s ease-out forwards;
+}
+
+@keyframes newlyUnlockedPulse {
+  0%   { fill: #2a0a4a; stroke: #d8b4fe; filter: drop-shadow(0 0 10px #d8b4fecc); }
+  100% { fill: #0f1d3e; stroke: #2a4080; filter: none; }
+}
+
+@keyframes newlyUnlockedRing {
+  0%   { opacity: 0.9; }
+  100% { opacity: 0; }
 }
 
 /* Glow ring — hidden by default, expands on interaction */

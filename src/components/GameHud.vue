@@ -6,18 +6,18 @@
       <span class="hud-value" data-testid="round-value">{{ currentRound }}<span class="hud-total"> / {{ totalRounds }}</span></span>
     </div>
 
-    <!-- Progress dots -->
-    <div class="hud-progress" aria-label="Round progress">
-      <span
-        v-for="r in totalRounds"
-        :key="r"
-        class="progress-dot"
-        :class="{
-          'dot-done':    r < currentRound,
-          'dot-current': r === currentRound,
-        }"
-        :aria-label="`Round ${r} ${r < currentRound ? 'complete' : r === currentRound ? 'current' : 'upcoming'}`"
-      />
+    <!-- Zone petal progress (Flower of Life indicator) -->
+    <div class="hud-block hud-zones" aria-label="Zone progress">
+      <span class="hud-label">Garden</span>
+      <span class="hud-zones-row">
+        <span
+          v-for="z in totalRounds"
+          :key="z"
+          class="zone-pip"
+          :class="{ 'zone-active': unlockedZones.has(z - 1) }"
+          :aria-label="`Zone ${z} ${unlockedZones.has(z - 1) ? 'unlocked' : 'locked'}`"
+        >⬡</span>
+      </span>
     </div>
 
     <!-- Attempt hearts -->
@@ -48,6 +48,8 @@ defineProps({
   score:         { type: Number, required: true },
   attemptsLeft:  { type: Number, required: true },
   maxAttempts:   { type: Number, required: true },
+  /** Set<number> of zone IDs that have been revealed */
+  unlockedZones: { type: Object, default: () => new Set([0]) },
 })
 </script>
 
@@ -100,7 +102,32 @@ defineProps({
   100% { transform: scale(1);    color: var(--clr-teal, #00e8c8); }
 }
 
-/* Progress dots */
+/* ── Zone petal indicator ───────────────────────────────────────────────────── */
+.hud-zones-row {
+  display:     flex;
+  gap:         3px;
+  align-items: center;
+}
+
+.zone-pip {
+  font-size:  1.0rem;
+  color:      #1e3060;
+  transition: color 0.35s, text-shadow 0.35s;
+  line-height: 1;
+}
+
+.zone-active {
+  color:       #d8b4fe;
+  text-shadow: 0 0 8px #7c3aedaa;
+  animation:   zonePipGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes zonePipGlow {
+  from { text-shadow: 0 0 4px #7c3aed55; }
+  to   { text-shadow: 0 0 14px #d8b4fecc; }
+}
+
+/* ── Progress dots (kept for reference, replaced by zone pips above) ───────── */
 .hud-progress {
   display: flex;
   gap:     6px;
