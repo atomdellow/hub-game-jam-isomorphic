@@ -173,4 +173,5 @@ const seedCircles = [
   opacity:    0.6;
   margin:     0;
 }
+
 </style>

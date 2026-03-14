@@ -31,7 +31,7 @@
 
             <!-- Instruction blurb -->
             <p class="play-instructions">
-              Select nodes on the board that form the same structure as the target pattern.
+              Select tiles on the board that form the same structure as the target pattern.
               Rotation and position don't matter — only the <em>connections</em> do.
             </p>
           </aside>
@@ -39,10 +39,14 @@
           <!-- Centre: game board -->
           <section class="panel-center" aria-label="Game board">
             <GameBoard
+              :boardTiles="boardTiles"
+              :boardEdges="boardEdges"
+              :boardViewBox="boardViewBox"
               :selectedIds="selectedIds"
               :correctIds="correctIds"
               :hasError="feedbackType === 'error'"
               :claimedByRound="claimedByRound"
+              :currentLevel="level"
               @nodeClick="toggleNode"
             />
 
@@ -89,6 +93,27 @@
       </div>
     </Transition>
 
+    <!-- ── Level transition (board expands between levels) ──────────── -->
+    <Transition name="fade">
+      <div v-if="phase === 'levelTransition'" class="level-transition-layout">
+        <div class="level-transition-card">
+          <p class="lvl-trans-super">Garden Complete</p>
+          <h2 class="lvl-trans-title">Level {{ level }} Mastered</h2>
+          <p class="lvl-trans-hint">New territory emerging…</p>
+        </div>
+        <GameBoard
+          :boardTiles="boardTiles"
+          :boardEdges="boardEdges"
+          :boardViewBox="boardViewBox"
+          :selectedIds="[]"
+          :correctIds="correctIds"
+          :hasError="false"
+          :claimedByRound="claimedByRound"
+          :currentLevel="level"
+        />
+      </div>
+    </Transition>
+
     <!-- ── End screen ─────────────────────────────────────────────── -->
     <Transition name="fade">
       <EndScreen
@@ -122,6 +147,7 @@ import TargetPatternCard     from './components/TargetPatternCard.vue'
 
 const {
   phase,
+  level,
   score,
   selectedIds,
   correctIds,
@@ -133,6 +159,9 @@ const {
   totalRounds,
   claimedByRound,
   attemptsLeft,
+  boardTiles,
+  boardEdges,
+  boardViewBox,
   startGame,
   toggleNode,
   resetSelection,
@@ -263,6 +292,60 @@ const {
   font-size: 0.72rem;
   color:     var(--clr-muted, #7090b0);
   margin:    0;
+}
+
+/* ── Level transition layout ────────────────────────────────────────────── */
+.level-transition-layout {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  min-height:      100vh;
+  gap:             2rem;
+  padding:         2rem 1rem;
+}
+
+.level-transition-card {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            0.35rem;
+  text-align:     center;
+}
+
+.lvl-trans-super {
+  font-size:      0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color:          var(--clr-muted, #7090b0);
+  margin:         0;
+}
+
+.lvl-trans-title {
+  font-size:   clamp(2rem, 6vw, 3.2rem);
+  font-weight: 900;
+  color:       var(--clr-teal, #00e8c8);
+  text-shadow: 0 0 32px #00e8c866;
+  margin:      0;
+  animation:   titleGlow 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes titleGlow {
+  from { text-shadow: 0 0 16px #00e8c844; }
+  to   { text-shadow: 0 0 40px #00e8c8cc; }
+}
+
+.lvl-trans-hint {
+  font-size:   0.88rem;
+  color:       var(--clr-cyan, #38bdf8);
+  opacity:     0.8;
+  margin:      0;
+  animation:   hintFade 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes hintFade {
+  from { opacity: 0.5; }
+  to   { opacity: 1.0; }
 }
 
 /* ── Transitions ────────────────────────────────────────────────────────── */

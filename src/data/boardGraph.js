@@ -1,149 +1,191 @@
 /**
  * boardGraph.js
  *
- * Sacred geometry board — 19-node hexagonal (triangular) lattice.
- * Inspired by the Flower of Life / Seed of Life.
+ * Full Flower-of-Life hex board — one fixed 103-tile board for all 7 levels.
  *
- * Layout (pointy-top rows, centred in a 500×500 SVG viewport):
+ * Seven radius-2 axial clusters arranged in the Flower of Life pattern:
+ *   one central cluster (A, level 1) surrounded by six petals (B–G, levels 2–7).
  *
- *   Row +2 (3 nodes)  ·  n0   n1   n2
- *   Row +1 (4 nodes)  ·  n3   n4   n5   n6
- *   Row  0 (5 nodes)  ·  n7   n8   n9  n10  n11   ← centre
- *   Row -1 (4 nodes)  ·  n12  n13  n14  n15
- *   Row -2 (3 nodes)  ·  n16  n17  n18
+ * Each tile stores:
+ *   id             — canonical string key "hQ_R"
+ *   q, r           — axial coordinates
+ *   x, y           — SVG pixel centre
+ *   points         — SVG polygon points string
+ *   neighbors      — ids of adjacent tiles in the full board
+ *   ring           — axial distance from its home cluster's centre
+ *   clusters       — names of every cluster this tile belongs to
+ *   activeFromLevel — the earliest level at which this tile becomes playable
  *
- * Each node connects to:
- *   - horizontal neighbours in the same row
- *   - the two diagonal neighbours in each adjacent row
- *     (nodes whose x differs by exactly H/2 = 30 px)
- *
- * This produces a dense triangular lattice with 42 edges total.
+ * getBoardConfig(level) always returns the SAME full board.
+ * Rendering uses:   tileLocked = tile.activeFromLevel > currentLevel
+ * Selection blocks: tile.activeFromLevel > level
  */
 
-const CX = 250   // SVG centre-x
-const CY = 250   // SVG centre-y
-const H  = 60    // horizontal spacing between nodes
-const V  = 52    // vertical spacing  (≈ H × √3/2)
-
-// ── Node catalogue ──────────────────────────────────────────────────────────
-export const nodes = [
-  // Row +2
-  { id: 'n0',  x: CX - H,       y: CY - 2 * V, neighbors: ['n1', 'n3', 'n4'] },
-  { id: 'n1',  x: CX,           y: CY - 2 * V, neighbors: ['n0', 'n2', 'n4', 'n5'] },
-  { id: 'n2',  x: CX + H,       y: CY - 2 * V, neighbors: ['n1', 'n5', 'n6'] },
-
-  // Row +1
-  { id: 'n3',  x: CX - 1.5 * H, y: CY - V,     neighbors: ['n0', 'n4', 'n7', 'n8'] },
-  { id: 'n4',  x: CX - 0.5 * H, y: CY - V,     neighbors: ['n0', 'n1', 'n3', 'n5', 'n8', 'n9'] },
-  { id: 'n5',  x: CX + 0.5 * H, y: CY - V,     neighbors: ['n1', 'n2', 'n4', 'n6', 'n9', 'n10'] },
-  { id: 'n6',  x: CX + 1.5 * H, y: CY - V,     neighbors: ['n2', 'n5', 'n10', 'n11'] },
-
-  // Row 0 (middle)
-  { id: 'n7',  x: CX - 2 * H,   y: CY,         neighbors: ['n3', 'n8', 'n12'] },
-  { id: 'n8',  x: CX - H,       y: CY,         neighbors: ['n3', 'n4', 'n7', 'n9', 'n12', 'n13'] },
-  { id: 'n9',  x: CX,           y: CY,         neighbors: ['n4', 'n5', 'n8', 'n10', 'n13', 'n14'] },
-  { id: 'n10', x: CX + H,       y: CY,         neighbors: ['n5', 'n6', 'n9', 'n11', 'n14', 'n15'] },
-  { id: 'n11', x: CX + 2 * H,   y: CY,         neighbors: ['n6', 'n10', 'n15'] },
-
-  // Row -1
-  { id: 'n12', x: CX - 1.5 * H, y: CY + V,     neighbors: ['n7', 'n8', 'n13', 'n16'] },
-  { id: 'n13', x: CX - 0.5 * H, y: CY + V,     neighbors: ['n8', 'n9', 'n12', 'n14', 'n16', 'n17'] },
-  { id: 'n14', x: CX + 0.5 * H, y: CY + V,     neighbors: ['n9', 'n10', 'n13', 'n15', 'n17', 'n18'] },
-  { id: 'n15', x: CX + 1.5 * H, y: CY + V,     neighbors: ['n10', 'n11', 'n14', 'n18'] },
-
-  // Row -2
-  { id: 'n16', x: CX - H,       y: CY + 2 * V, neighbors: ['n12', 'n13', 'n17'] },
-  { id: 'n17', x: CX,           y: CY + 2 * V, neighbors: ['n13', 'n14', 'n16', 'n18'] },
-  { id: 'n18', x: CX + H,       y: CY + 2 * V, neighbors: ['n14', 'n15', 'n17'] },
+// ── Cluster centres (Flower of Life geometry) ─────────────────────────────────
+//
+// Adjacent clusters are at axial distance 4, so they share exactly 3 tiles
+// (one complete flat edge).  All 6 outer centres are equidistant from A.
+//
+const CLUSTERS = [
+  { name: 'A', level: 1, center: [ 0,  0] },
+  { name: 'B', level: 2, center: [ 4, -2] },
+  { name: 'C', level: 3, center: [ 2, -4] },
+  { name: 'D', level: 4, center: [-2, -2] },
+  { name: 'E', level: 5, center: [-4,  2] },
+  { name: 'F', level: 6, center: [-2,  4] },
+  { name: 'G', level: 7, center: [ 2,  2] },
 ]
 
-// ── Edge catalogue (42 edges, each listed once as [a, b]) ───────────────────
-export const edges = [
-  // Row +2 horizontal
-  ['n0','n1'], ['n1','n2'],
-  // Row +1 horizontal
-  ['n3','n4'], ['n4','n5'], ['n5','n6'],
-  // Row 0 horizontal
-  ['n7','n8'], ['n8','n9'], ['n9','n10'], ['n10','n11'],
-  // Row -1 horizontal
-  ['n12','n13'], ['n13','n14'], ['n14','n15'],
-  // Row -2 horizontal
-  ['n16','n17'], ['n17','n18'],
+// ── Layout constants ───────────────────────────────────────────────────────────
+const CX        = 390   // SVG centre-x  (viewport 780 px wide)
+const CY        = 410   // SVG centre-y  (viewport 820 px tall)
+const SIZE      = 38    // hex circumradius for layout, px
+const DRAW_SIZE = 34    // polygon draw radius — inset to create visible gap
 
-  // Row +2 ↔ Row +1 diagonals
-  ['n0','n3'], ['n0','n4'],
-  ['n1','n4'], ['n1','n5'],
-  ['n2','n5'], ['n2','n6'],
-
-  // Row +1 ↔ Row 0 diagonals
-  ['n3','n7'], ['n3','n8'],
-  ['n4','n8'], ['n4','n9'],
-  ['n5','n9'], ['n5','n10'],
-  ['n6','n10'],['n6','n11'],
-
-  // Row 0 ↔ Row -1 diagonals
-  ['n7','n12'],
-  ['n8','n12'], ['n8','n13'],
-  ['n9','n13'], ['n9','n14'],
-  ['n10','n14'],['n10','n15'],
-  ['n11','n15'],
-
-  // Row -1 ↔ Row -2 diagonals
-  ['n12','n16'],
-  ['n13','n16'], ['n13','n17'],
-  ['n14','n17'], ['n14','n18'],
-  ['n15','n18'],
+const AXIAL_DIRS = [
+  [ 1,  0],
+  [ 1, -1],
+  [ 0, -1],
+  [-1,  0],
+  [-1,  1],
+  [ 0,  1],
 ]
 
-// ── Zone (Flower-of-Life petal) definitions ──────────────────────────────────
-//
-// The 19-node board maps onto the "Seed of Life" sacred geometry:
-//   Zone 0 (Seed)  — the inner 7-node hexagon, always active from round 1.
-//   Zones 1–6      — one 2-node petal each, unlocked as rounds are won,
-//                    going clockwise from NW.
-//
-// Visual layout (letters = zone index):
-//
-//   Row +2:  1  -  2      zones NW & N
-//   Row +1:  1  0  0  3      centre seed + NE
-//   Row  0:  -  0  0  0  3
-//   Row -1:  6  0  0  5
-//   Row -2:  6  -  4  5      zones SW, S, SE
-//
-// Mathematically verified (Python, 2026-03-14):
-//   All 7 rounds use non-overlapping node sets that cover all 19 nodes.
-//   Each petal unlocks BEFORE its round is played, so the new nodes are
-//   reachable from the previously-active board via free bridge nodes.
-//
-export const ZONES = [
-  { id: 0, name: 'Seed of Life',    nodes: ['n4','n5','n8','n9','n10','n13','n14'] },
-  { id: 1, name: 'NW Petal',        nodes: ['n0','n3'] },
-  { id: 2, name: 'N Petal',         nodes: ['n1','n2'] },
-  { id: 3, name: 'NE Petal',        nodes: ['n6','n11'] },
-  { id: 4, name: 'SE Petal',        nodes: ['n15','n18'] },
-  { id: 5, name: 'S Petal',         nodes: ['n16','n17'] },
-  { id: 6, name: 'SW Petal',        nodes: ['n7','n12'] },
-]
+// ── Pure math helpers ─────────────────────────────────────────────────────────
+
+function hexDistance(q1, r1, q2, r2) {
+  return Math.max(
+    Math.abs(q1 - q2),
+    Math.abs(r1 - r2),
+    Math.abs((-q1 - r1) - (-q2 - r2)),
+  )
+}
+
+function generateClusterTiles(centerQ, centerR, radius = 2) {
+  const tiles = []
+  for (let q = centerQ - radius; q <= centerQ + radius; q++) {
+    for (let r = centerR - radius; r <= centerR + radius; r++) {
+      if (hexDistance(q, r, centerQ, centerR) <= radius) {
+        tiles.push({ q, r })
+      }
+    }
+  }
+  return tiles
+}
+
+function axialToPixel(q, r) {
+  return {
+    x: CX + SIZE * (Math.sqrt(3) * q + Math.sqrt(3) / 2 * r),
+    y: CY + SIZE * (1.5 * r),
+  }
+}
+
+function hexPoints(cx, cy) {
+  return Array.from({ length: 6 }, (_, i) => {
+    const angle = (Math.PI / 180) * (60 * i - 30)
+    return `${(cx + DRAW_SIZE * Math.cos(angle)).toFixed(2)},${(cy + DRAW_SIZE * Math.sin(angle)).toFixed(2)}`
+  }).join(' ')
+}
+
+const tileId = (q, r) => `h${q}_${r}`
+
+// ── Full board builder ────────────────────────────────────────────────────────
+
+function buildFullFlowerBoard() {
+  // 1. Union all cluster tiles, recording which clusters each tile belongs to
+  const tileMap = new Map()
+
+  for (const cluster of CLUSTERS) {
+    const [cq, cr] = cluster.center
+    for (const { q, r } of generateClusterTiles(cq, cr, 2)) {
+      const key = tileId(q, r)
+      if (!tileMap.has(key)) {
+        tileMap.set(key, { q, r, clusters: [] })
+      }
+      const entry = tileMap.get(key)
+      if (!entry.clusters.includes(cluster.name)) {
+        entry.clusters.push(cluster.name)
+      }
+    }
+  }
+
+  // 2. Compute activeFromLevel = earliest level among owning clusters
+  const allCoords = new Set(tileMap.keys())
+
+  const tiles = Array.from(tileMap.entries()).map(([id, { q, r, clusters }]) => {
+    const activeFromLevel = Math.min(
+      ...clusters.map(name => CLUSTERS.find(c => c.name === name).level),
+    )
+
+    const { x, y } = axialToPixel(q, r)
+
+    // Home cluster = the one that owns this tile at the earliest level
+    const homeCluster = CLUSTERS.find(c => c.name === clusters[0])
+    const ring = hexDistance(q, r, homeCluster.center[0], homeCluster.center[1])
+
+    const neighbors = AXIAL_DIRS
+      .map(([dq, dr]) => tileId(q + dq, r + dr))
+      .filter(nid => allCoords.has(nid))
+
+    return {
+      id,
+      q,
+      r,
+      x,
+      y,
+      points: hexPoints(x, y),
+      neighbors,
+      ring,
+      clusters,
+      activeFromLevel,
+    }
+  })
+
+  // 3. Derive unique edges from adjacency
+  const edgeSet = new Set()
+  const edges   = []
+  for (const tile of tiles) {
+    for (const nbrId of tile.neighbors) {
+      const key = [tile.id, nbrId].sort().join('|')
+      if (!edgeSet.has(key)) {
+        edgeSet.add(key)
+        edges.push([tile.id, nbrId])
+      }
+    }
+  }
+
+  return { tiles, edges, viewBox: '0 0 780 820' }
+}
+
+// ── Module-level singleton ────────────────────────────────────────────────────
+// Built once at module load; shared by all callers.
+
+const FULL_BOARD = buildFullFlowerBoard()
+
+// ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Returns the zone index (0–6) that owns a given node id, or -1 if not found.
- * @param {string} nodeId
- * @returns {number}
+ * Returns the full board configuration.
+ * The same board is used for every level; rendering uses
+ * `tile.activeFromLevel > currentLevel` to decide which tiles are locked.
+ *
+ * @returns {{ tiles, edges, viewBox }}
  */
-export function getZoneForNode(nodeId) {
-  for (const zone of ZONES) {
-    if (zone.nodes.includes(nodeId)) return zone.id
-  }
-  return -1
+export function getBoardConfig() {
+  return FULL_BOARD
 }
 
-// ── Convenience lookup ───────────────────────────────────────────────────────
-/** Returns a node object by id, or undefined. */
-export function getNode(id) {
-  return nodes.find(n => n.id === id)
-}
+// ── Backward-compat exports ───────────────────────────────────────────────────
 
-/** Returns all edges that include at least one node in the given id set. */
+export const tiles = FULL_BOARD.tiles
+export const nodes = tiles
+export const edges = FULL_BOARD.edges
+
+export function getTile(id) {
+  return tiles.find(t => t.id === id)
+}
+export const getNode = getTile
+
 export function edgesForNodes(idSet) {
   return edges.filter(([a, b]) => idSet.has(a) || idSet.has(b))
 }

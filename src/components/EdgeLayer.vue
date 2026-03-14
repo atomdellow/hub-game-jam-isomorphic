@@ -17,25 +17,24 @@
 
 <script setup>
 import { computed } from 'vue'
-import { nodes }    from '../data/boardGraph.js'
 
 const props = defineProps({
+  /** Tile objects for the current board — used to look up x/y coordinates. */
+  tiles:        { type: Array,  required: true },
   /** Full board edge list — array of [idA, idB] pairs */
   edges:        { type: Array,  required: true },
-  /** Array of node IDs currently selected by the player */
+  /** Array of tile IDs currently selected by the player */
   selectedIds:  { type: Array,  default: () => [] },
-  /** Array of node IDs that were part of the last correct solve */
+  /** Array of tile IDs that were part of the last correct solve */
   correctIds:   { type: Array,  default: () => [] },
 })
 
-// Build a fast O(1) lookup from node id → node object
 const nodeMap = computed(() => {
   const m = {}
-  nodes.forEach(n => { m[n.id] = n })
+  props.tiles.forEach(t => { m[t.id] = t })
   return m
 })
 
-/** Returns the CSS class(es) for a given edge based on selection state. */
 function edgeClass([a, b]) {
   const selA = props.selectedIds.includes(a)
   const selB = props.selectedIds.includes(b)
@@ -51,10 +50,10 @@ function edgeClass([a, b]) {
 
 <style scoped>
 .board-edge {
-  stroke:        #1e3060;
-  stroke-width:  2;
+  stroke:         #1e3060;
+  stroke-width:   2;
   stroke-linecap: round;
-  transition:    stroke 0.2s, stroke-width 0.2s, filter 0.2s;
+  transition:     stroke 0.2s, stroke-width 0.2s, filter 0.2s;
 }
 
 .edge-partial {

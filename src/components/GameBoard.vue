@@ -1,35 +1,31 @@
 <template>
-  <!-- The sacred geometry game board rendered as a responsive SVG. -->
+  <!-- Hex tile game board rendered as a responsive SVG. -->
   <div class="board-wrapper" :class="{ 'board-shake': shaking }">
     <svg
       class="board-svg"
-      viewBox="0 0 500 500"
+      :viewBox="boardViewBox"
       xmlns="http://www.w3.org/2000/svg"
       role="img"
-      aria-label="Sacred geometry game board"
+      aria-label="Hex tile game board"
     >
-      <!-- Subtle background geometry circles (decorative Flower of Life hint) -->
-      <g class="bg-geometry" aria-hidden="true">
-        <circle cx="250" cy="250" r="104" class="bg-ring" />
-        <circle cx="250" cy="250" r="62"  class="bg-ring bg-ring--inner" />
-      </g>
-
-      <!-- Edges layer (drawn below nodes) -->
+      <!-- Edges layer (drawn below tiles so tile bodies sit on top) -->
       <EdgeLayer
-        :edges="edges"
+        :tiles="boardTiles"
+        :edges="boardEdges"
         :selectedIds="selectedIds"
         :correctIds="correctIds"
       />
 
-      <!-- Node layer -->
+      <!-- Tile layer -->
       <NodeButton
-        v-for="node in nodes"
-        :key="node.id"
-        :node="node"
-        :selected="selectedIds.includes(node.id)"
-        :correct="correctIds.includes(node.id)"
-        :claimedRound="claimedByRound[node.id] ?? null"
-        @click="emit('nodeClick', node.id)"
+        v-for="tile in boardTiles"
+        :key="tile.id"
+        :node="tile"
+        :selected="selectedIds.includes(tile.id)"
+        :correct="correctIds.includes(tile.id)"
+        :claimedRound="claimedByRound[tile.id] ?? null"
+        :clusterLocked="tile.activeFromLevel > currentLevel"
+        @click="emit('nodeClick', tile.id)"
       />
     </svg>
   </div>
@@ -37,24 +33,31 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { nodes, edges } from '../data/boardGraph.js'
-import EdgeLayer        from './EdgeLayer.vue'
-import NodeButton       from './NodeButton.vue'
+import EdgeLayer  from './EdgeLayer.vue'
+import NodeButton from './NodeButton.vue'
 
 const props = defineProps({
-  /** Array of node IDs currently selected */
-  selectedIds:    { type: Array,   default: () => [] },
-  /** Array of node IDs in the last correct solve */
-  correctIds:     { type: Array,   default: () => [] },
+  /** Tile objects for the current board */
+  boardTiles:      { type: Array,   required: true },
+  /** Edge list for the current board */
+  boardEdges:      { type: Array,   required: true },
+  /** SVG viewBox string for the current board */
+  boardViewBox:    { type: String,  default: '0 0 500 500' },
+  /** Array of tile IDs currently selected */
+  selectedIds:     { type: Array,   default: () => [] },
+  /** Array of tile IDs in the last correct solve */
+  correctIds:      { type: Array,   default: () => [] },
   /** True while the "wrong answer" feedback is showing */
-  hasError:       { type: Boolean, default: false },
-  /** Map of nodeId → round number (1-based) for claimed nodes */
-  claimedByRound: { type: Object,  default: () => ({}) },
+  hasError:        { type: Boolean, default: false },
+  /** Map of tileId → round number (1-based) for claimed tiles */
+  claimedByRound:  { type: Object,  default: () => ({}) },
+  /** Current game level — tiles with activeFromLevel > this are locked */
+  currentLevel:     { type: Number,  default: 1 },
 })
 
 const emit = defineEmits(['nodeClick'])
 
-// ── Shake animation on error ───────────────────────────────────────────────
+// ── Shake animation on error ──────────────────────────────────────────────────
 const shaking = ref(false)
 let shakeTimer = null
 
@@ -73,27 +76,14 @@ watch(() => props.hasError, (val) => {
   align-items:      center;
   justify-content:  center;
   width:            100%;
-  max-width:        520px;
+  max-width:        720px;
   margin:           0 auto;
 }
 
 .board-svg {
   width:  100%;
   height: auto;
-  /* Soft outer glow on the board container */
   filter: drop-shadow(0 0 24px #00e8c811);
-}
-
-/* Decorative background rings */
-.bg-ring {
-  fill:         none;
-  stroke:       #1a2d60;
-  stroke-width: 1;
-  opacity:      0.5;
-}
-.bg-ring--inner {
-  stroke-dasharray: 4 6;
-  opacity:          0.3;
 }
 
 /* ── Shake on wrong answer ─────────────────────────────────────────────────── */
