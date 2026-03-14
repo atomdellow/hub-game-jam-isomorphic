@@ -20,6 +20,20 @@
       />
     </div>
 
+    <!-- Attempt hearts -->
+    <div class="hud-block hud-attempts" aria-label="Attempts remaining">
+      <span class="hud-label">Lives</span>
+      <span class="hud-hearts">
+        <span
+          v-for="i in maxAttempts"
+          :key="i"
+          class="heart-pip"
+          :class="{ 'heart-lost': i > attemptsLeft }"
+          aria-hidden="true"
+        >♥</span>
+      </span>
+    </div>
+
     <div class="hud-block hud-score">
       <span class="hud-label">Score</span>
       <span class="hud-value score-value" :key="score">{{ score }}</span>
@@ -29,9 +43,11 @@
 
 <script setup>
 defineProps({
-  currentRound: { type: Number, required: true },
-  totalRounds:  { type: Number, required: true },
-  score:        { type: Number, required: true },
+  currentRound:  { type: Number, required: true },
+  totalRounds:   { type: Number, required: true },
+  score:         { type: Number, required: true },
+  attemptsLeft:  { type: Number, required: true },
+  maxAttempts:   { type: Number, required: true },
 })
 </script>
 
@@ -116,5 +132,22 @@ defineProps({
 @keyframes dotPulse {
   from { box-shadow: 0 0 4px #00e8c877; }
   to   { box-shadow: 0 0 12px #00e8c8cc; }
+}
+
+/* Attempt hearts */
+.hud-hearts {
+  display:     flex;
+  gap:         0.18rem;
+  align-items: center;
+}
+.heart-pip {
+  font-size:  1.05rem;
+  color:      #f472b6;
+  transition: opacity 0.3s, transform 0.3s;
+  line-height: 1;
+}
+.heart-lost {
+  opacity:   0.18;
+  transform: scale(0.75);
 }
 </style>
