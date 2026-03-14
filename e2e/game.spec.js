@@ -54,7 +54,67 @@ const KITE = [
   '[data-node-id="n7"]',
 ]
 
-const ALL_ROUNDS = [LINE3, TRIANGLE, FORK, LINE4, KITE]
+// Round-7 diamond (K₄-e): n4 + n8 + n9 + n13.
+// Edges: n4-n8, n4-n9, n8-n9, n8-n13, n9-n13 (5 edges) → degrees [2,2,3,3] ✓
+const DIAMOND = [
+  '[data-node-id="n4"]',
+  '[data-node-id="n8"]',
+  '[data-node-id="n9"]',
+  '[data-node-id="n13"]',
+]
+
+// Round-8 line5 (P5): n7-n8-n9-n10-n11 horizontal path.
+// No diagonals between any non-adjacent pair → degrees [1,1,2,2,2] ✓
+const LINE5 = [
+  '[data-node-id="n7"]',
+  '[data-node-id="n8"]',
+  '[data-node-id="n9"]',
+  '[data-node-id="n10"]',
+  '[data-node-id="n11"]',
+]
+
+// Round-9 caterpillar: hub n9 (arms n5, n8, n14) + pendant n12 from n8.
+// n5-n8✗ n5-n14✗ n8-n14✗ n12-n9✗ n12-n5✗ n12-n14✗ → 4 edges, degrees [1,1,1,2,3] ✓
+const CATERPILLAR = [
+  '[data-node-id="n9"]',
+  '[data-node-id="n5"]',
+  '[data-node-id="n8"]',
+  '[data-node-id="n14"]',
+  '[data-node-id="n12"]',
+]
+
+// Round-10 tadpole: triangle n8/n9/n13 + chain n9-n10-n11.
+// n8-n10✗ n8-n11✗ n13-n10✗ n13-n11✗ n9-n11✗ → 5 edges, degrees [1,2,2,2,3] ✓
+const TADPOLE = [
+  '[data-node-id="n8"]',
+  '[data-node-id="n9"]',
+  '[data-node-id="n13"]',
+  '[data-node-id="n10"]',
+  '[data-node-id="n11"]',
+]
+
+// Round-11 bull: triangle n8/n9/n13 + pendant n7 from n8, pendant n10 from n9.
+// n7-n9✗ n7-n13✗ n7-n10✗ n13-n10✗ → 5 edges, degrees [1,1,2,3,3] ✓
+const BULL = [
+  '[data-node-id="n7"]',
+  '[data-node-id="n8"]',
+  '[data-node-id="n9"]',
+  '[data-node-id="n13"]',
+  '[data-node-id="n10"]',
+]
+
+// Round-12 doubleCat: hub n9 (arms n5, n8, n14) + n1 from n5, n12 from n8.
+// n1-n8✗ n1-n9✗ n1-n12✗ n1-n14✗ n12-n9✗ n12-n5✗ n12-n14✗ → 5 edges, degrees [1,1,1,2,2,3] ✓
+const DOUBLE_CAT = [
+  '[data-node-id="n1"]',
+  '[data-node-id="n5"]',
+  '[data-node-id="n8"]',
+  '[data-node-id="n9"]',
+  '[data-node-id="n12"]',
+  '[data-node-id="n14"]',
+]
+
+const ALL_ROUNDS = [LINE3, TRIANGLE, FORK, LINE4, KITE, DIAMOND, LINE5, CATERPILLAR, TADPOLE, BULL, DOUBLE_CAT]
 
 /** Click every node in a selector array */
 async function clickNodes(page, selectors) {
@@ -138,8 +198,8 @@ test.describe('IsoBloom — Round Progression', () => {
     await expect(page.getByTestId('round-value')).toContainText('2', { timeout: 3000 })
   })
 
-  test('all 6 rounds complete and reach the End screen', async ({ page }) => {
-    test.setTimeout(25000)
+  test('all 12 rounds complete and reach the End screen', async ({ page }) => {
+    test.setTimeout(40000)
     // Round 1 — line2
     await clickNodes(page, [NODE_A, NODE_B])
     await page.getByTestId('btn-submit').click()
@@ -176,14 +236,14 @@ test.describe('IsoBloom — End Screen', () => {
   }
 
   test('End screen shows final score and rating', async ({ page }) => {
-    test.setTimeout(25000)
+    test.setTimeout(40000)
     await completeGame(page)
     await expect(page.getByText('Final Score')).toBeVisible()
     await expect(page.getByText('Patterns Found')).toBeVisible()
   })
 
   test('Play Again returns to title screen', async ({ page }) => {
-    test.setTimeout(25000)
+    test.setTimeout(40000)
     await completeGame(page)
     await page.getByTestId('btn-restart').click()
     await expect(page.getByTestId('btn-start')).toBeVisible({ timeout: 2000 })
