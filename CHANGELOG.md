@@ -8,6 +8,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ---
+## [1.2.0] — 2026-03-13 · TICKET-020
+
+### Added
+- **Persistent board mechanic**: correctly-placed patterns now permanently claim their nodes on the shared 19-node board. All 5 rounds play out on the same board, building a visible record of every solved pattern (coloured badges: purple, blue, teal, amber, pink)
+- **Fail state** (`phase = 'failed'`): each round allows `MAX_ATTEMPTS = 3` wrong submissions; exhausting all attempts immediately transitions to the new Fail screen
+- **`FailScreen.vue`** — red-themed "Garden Blocked!" screen with wilt (🥀) animation, round stats, strategy tip, and "↺ Try Again" button (`data-testid="btn-try-again"`)
+- **`claimedByRound`** reactive map (`nodeId → roundNumber`) exported from `useGameState`; persists across rounds, reset only on full restart
+- **`attemptsLeft`** ref and `MAX_ATTEMPTS` constant exported from `useGameState`
+- **GameHud heart-pips**: Lives row with `maxAttempts` hearts that fade when lost
+- **NodeButton round badge**: claimed nodes display their round number, use round-colour accent, and are keyboard- and pointer-inaccessible
+- `TOTAL_ROUNDS` reduced from 12 → **5** (one pattern per ~3–4 board nodes; the 19-node board comfortably holds all 5 claims with 3 spare nodes)
+
+### Changed
+- `useGameState.submitAnswer`: on correct solve, stamps `claimedByRound`; on wrong solve, decrements `attemptsLeft` and triggers fail phase when budget reaches zero
+- `_advanceRound`: resets `attemptsLeft` to `MAX_ATTEMPTS` but keeps `claimedByRound` intact
+- `toggleNode` / `resetSelection`: both no-op while `isLocked`; `toggleNode` additionally blocks claimed nodes
+- `GameBoard.vue` receives `claimedByRound` prop and passes `claimedRound` to each `NodeButton`
+- E2E test suite completely rewritten for persistent-board mechanics: 15 tests covering start screen, game screen interactions, round progression, end screen, and fail screen; non-overlapping board packing verified (Python, 2026-03-13): R1 `{n0,n1}` · R2 `{n7,n12,n16}` · R3 `{n14,n15,n18}` · R4 `{n5,n2,n4,n10}` · R5 `{n3,n8,n13,n17}`
+
+---
 ## [1.1.0] — 2026-03-13 · TICKET-019
 
 ### Added

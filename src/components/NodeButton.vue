@@ -1,39 +1,40 @@
 <template>
-  <!-- SVG <g> representing a single clickable plant-pod node.
-       Composed of two concentric circles + an optional inner glyph. -->
+  <!-- SVG <g> representing a single clickable plant-pod node. -->
   <g
-    :class="['node-group', { 'node-selected': selected, 'node-correct': correct, 'node-hover': hover }]"
+    :class="['node-group', {
+      'node-selected': selected && claimedRound === null,
+      'node-correct':  correct,
+      'node-hover':    hover && claimedRound === null,
+      'node-claimed':  claimedRound !== null,
+    }]"
+    :style="claimedRound !== null ? { '--claimed-clr': ROUND_COLORS[claimedRound - 1] } : {}"
     :data-node-id="node.id"
     :data-testid="`node-${node.id}`"
-    :aria-label="`Node ${node.id}${selected ? ' selected' : ''}`"
+    :aria-label="`Node ${node.id}${
+      claimedRound !== null ? ` (placed round ${claimedRound})` : selected ? ' selected' : ''
+    }`"
     role="button"
-    tabindex="0"
-    @click="emit('click')"
-    @keydown.enter.space.prevent="emit('click')"
+    :tabindex="claimedRound !== null ? -1 : 0"
+    @click="claimedRound !== null ? undefined : emit('click')"
+    @keydown.enter.space.prevent="claimedRound !== null ? undefined : emit('click')"
     @mouseenter="hover = true"
     @mouseleave="hover = false"
   >
-    <!-- Outer glow ring (visible on hover / selected / correct) -->
-    <circle
-      :cx="node.x"
-      :cy="node.y"
-      :r="OUTER_R"
-      class="node-glow-ring"
-    />
+    <!-- Outer glow ring -->
+    <circle :cx="node.x" :cy="node.y" :r="OUTER_R" class="node-glow-ring" />
     <!-- Main pod body -->
-    <circle
-      :cx="node.x"
-      :cy="node.y"
-      :r="INNER_R"
-      class="node-body"
-    />
+    <circle :cx="node.x" :cy="node.y" :r="INNER_R" class="node-body" />
     <!-- Centre dot -->
-    <circle
-      :cx="node.x"
-      :cy="node.y"
-      :r="DOT_R"
-      class="node-dot"
-    />
+    <circle :cx="node.x" :cy="node.y" :r="DOT_R"   class="node-dot" />
+    <!-- Round badge shown when claimed -->
+    <text
+      v-if="claimedRound !== null"
+      :x="node.x"
+      :y="node.y + 4"
+      text-anchor="middle"
+      dominant-baseline="middle"
+      class="node-claimed-label"
+    >{{ claimedRound }}</text>
   </g>
 </template>
 
@@ -42,20 +43,27 @@ import { ref } from 'vue'
 
 const props = defineProps({
   /** Node data object from boardGraph.js { id, x, y, neighbors } */
-  node:     { type: Object,  required: true },
+  node:         { type: Object,  required: true },
   /** Is this node currently selected by the player? */
-  selected: { type: Boolean, default: false },
+  selected:     { type: Boolean, default: false },
   /** Was this node part of the last correct solve (bloom state)? */
-  correct:  { type: Boolean, default: false },
+  correct:      { type: Boolean, default: false },
+  /**
+   * null  = free to select
+   * 1–5   = locked; claimed by that round number
+   */
+  claimedRound: { type: Number,  default: null },
 })
 
 const emit = defineEmits(['click'])
 const hover = ref(false)
 
-// Node radii — kept here so they're easy to tweak
 const OUTER_R = 18
 const INNER_R = 12
 const DOT_R   = 3
+
+// One accent colour per round (purple → blue → teal → amber → pink)
+const ROUND_COLORS = ['#a78bfa', '#60a5fa', '#2dd4bf', '#fbbf24', '#f472b6']
 </script>
 
 <style scoped>
@@ -135,5 +143,34 @@ const DOT_R   = 3
 @keyframes bloomPulse {
   from { filter: drop-shadow(0 0 6px #4ade8088); }
   to   { filter: drop-shadow(0 0 18px #4ade80ff); }
+}
+
+/* ── Claimed (locked by a previous round) ───────────────────────────────────── */
+.node-claimed {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+.node-claimed .node-glow-ring {
+  stroke:  var(--claimed-clr, #888);
+  opacity: 0.3;
+}
+.node-claimed .node-body {
+  fill:         #070e1e;
+  stroke:       var(--claimed-clr, #888);
+  stroke-width: 2;
+  opacity:      0.80;
+  filter:       none;
+}
+.node-claimed .node-dot {
+  fill:    var(--claimed-clr, #888);
+  opacity: 0.80;
+}
+.node-claimed-label {
+  font-size:      9px;
+  font-weight:    700;
+  fill:           var(--claimed-clr, #fff);
+  opacity:        0.95;
+  pointer-events: none;
+  user-select:    none;
 }
 </style>

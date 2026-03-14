@@ -4,20 +4,23 @@
     <ParticleBg />
 
     <!-- ── Title screen ──────────────────────────────────────────────── -->
-    <Transition name="fade" mode="out-in">
+    <Transition name="fade">
       <StartScreen
         v-if="phase === 'start'"
-        key="start"
         @start="startGame"
       />
+    </Transition>
 
-      <!-- ── Playing screen ─────────────────────────────────────────── -->
-      <div v-else-if="phase === 'playing'" key="playing" class="playing-layout">
+    <!-- ── Playing screen ─────────────────────────────────────────── -->
+    <Transition name="fade">
+      <div v-if="phase === 'playing'" class="playing-layout">
         <!-- Top HUD bar -->
         <GameHud
           :currentRound="currentRound"
           :totalRounds="totalRounds"
           :score="score"
+          :attemptsLeft="attemptsLeft"
+          :maxAttempts="MAX_ATTEMPTS"
         />
 
         <!-- Main play area -->
@@ -39,6 +42,7 @@
               :selectedIds="selectedIds"
               :correctIds="correctIds"
               :hasError="feedbackType === 'error'"
+              :claimedByRound="claimedByRound"
               @nodeClick="toggleNode"
             />
 
@@ -83,23 +87,35 @@
           </section>
         </main>
       </div>
+    </Transition>
 
-      <!-- ── End screen ─────────────────────────────────────────────── -->
+    <!-- ── End screen ─────────────────────────────────────────────── -->
+    <Transition name="fade">
       <EndScreen
-        v-else-if="phase === 'end'"
-        key="end"
+        v-if="phase === 'end'"
         :score="score"
         @restart="restartGame"
       />
     </Transition>
-  </div>
+    <!-- ── Fail screen ────────────────────────────────────────────────── -->
+    <Transition name="fade">
+      <FailScreen
+        v-if="phase === 'failed'"
+        :score="score"
+        :failedRound="currentRound"
+        :totalRounds="totalRounds"
+        @restart="restartGame"
+      />
+    </Transition>  </div>
 </template>
 
 <script setup>
 import { useGameState }      from './composables/useGameState.js'
+import { MAX_ATTEMPTS }      from './composables/useGameState.js'
 import ParticleBg            from './components/ParticleBg.vue'
 import StartScreen           from './components/StartScreen.vue'
 import EndScreen             from './components/EndScreen.vue'
+import FailScreen            from './components/FailScreen.vue'
 import GameHud               from './components/GameHud.vue'
 import GameBoard             from './components/GameBoard.vue'
 import TargetPatternCard     from './components/TargetPatternCard.vue'
@@ -115,6 +131,8 @@ const {
   currentPattern,
   currentRound,
   totalRounds,
+  claimedByRound,
+  attemptsLeft,
   startGame,
   toggleNode,
   resetSelection,

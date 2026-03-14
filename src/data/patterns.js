@@ -286,5 +286,10 @@ export function getPatternForRound(index) {
   return patterns[index] ?? null
 }
 
-/** Total number of rounds. */
-export const TOTAL_ROUNDS = patterns.length
+/**
+ * Rounds per play session.
+ * The board has 19 nodes; the first 5 patterns claim exactly 16, leaving
+ * 3 spares — tight enough to force strategic placement without deadlocking.
+ * The remaining 7 patterns in the array are reserved for future level packs.
+ */
+export const TOTAL_ROUNDS = 5
