@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- IsoBloom favicon: stylised Seed of Life -->
+  <circle cx="16" cy="16" r="15" fill="#07091a"/>
+  <!-- Centre ring -->
+  <circle cx="16" cy="16" r="7" fill="none" stroke="#00e8c8" stroke-width="1.2" opacity="0.9"/>
+  <!-- 6 petal rings -->
+  <circle cx="16"   cy="9"  r="7" fill="none" stroke="#00e8c8" stroke-width="0.8" opacity="0.45"/>
+  <circle cx="22.1" cy="12.5" r="7" fill="none" stroke="#4ade80" stroke-width="0.8" opacity="0.45"/>
+  <circle cx="22.1" cy="19.5" r="7" fill="none" stroke="#4ade80" stroke-width="0.8" opacity="0.45"/>
+  <circle cx="16"   cy="23" r="7" fill="none" stroke="#00e8c8" stroke-width="0.8" opacity="0.45"/>
+  <circle cx="9.9"  cy="19.5" r="7" fill="none" stroke="#38bdf8" stroke-width="0.8" opacity="0.45"/>
+  <circle cx="9.9"  cy="12.5" r="7" fill="none" stroke="#38bdf8" stroke-width="0.8" opacity="0.45"/>
+  <!-- Centre dot -->
+  <circle cx="16" cy="16" r="2" fill="#00e8c8"/>
+</svg>
