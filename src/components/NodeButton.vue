@@ -4,6 +4,7 @@
   <g
     :class="['node-group', { 'node-selected': selected, 'node-correct': correct, 'node-hover': hover }]"
     :data-node-id="node.id"
+    :data-testid="`node-${node.id}`"
     :aria-label="`Node ${node.id}${selected ? ' selected' : ''}`"
     role="button"
     tabindex="0"
