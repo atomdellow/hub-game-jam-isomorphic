@@ -3,7 +3,7 @@
   <header class="game-hud" role="banner">
     <div class="hud-block hud-round">
       <span class="hud-label">Round</span>
-      <span class="hud-value">{{ currentRound }}<span class="hud-total"> / {{ totalRounds }}</span></span>
+      <span class="hud-value" data-testid="round-value">{{ currentRound }}<span class="hud-total"> / {{ totalRounds }}</span></span>
     </div>
 
     <!-- Progress dots -->
