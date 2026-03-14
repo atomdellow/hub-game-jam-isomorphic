@@ -1,7 +1,8 @@
 <template>
   <!-- Target pattern preview panel.
        Shows the abstract shape the player needs to find on the board. -->
-  <div class="pattern-card" :class="`pattern-card--${pattern.id}`">
+  <Transition name="pattern-swap" mode="out-in">
+  <div class="pattern-card" :class="`pattern-card--${pattern.id}`" :key="pattern.id">
     <p class="pattern-label">Find this pattern</p>
     <h2 class="pattern-name">{{ pattern.name }}</h2>
 
@@ -38,6 +39,7 @@
     <p class="pattern-description">{{ pattern.description }}</p>
     <p class="pattern-hint-text">💡 {{ pattern.hint }}</p>
   </div>
+  </Transition>
 </template>
 
 <script setup>
@@ -125,4 +127,10 @@ defineProps({
   margin:     0;
   font-style: italic;
 }
+
+/* Round-swap transition */
+.pattern-swap-enter-active { transition: opacity 0.3s, transform 0.3s; }
+.pattern-swap-leave-active { transition: opacity 0.2s, transform 0.2s; }
+.pattern-swap-enter-from   { opacity: 0; transform: translateY(8px) scale(0.97); }
+.pattern-swap-leave-to     { opacity: 0; transform: translateY(-6px) scale(0.97); }
 </style>
